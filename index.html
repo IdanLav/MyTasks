@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="MyTasks">
+  <meta name="theme-color" content="#4A90D9">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <title>MyTasks</title>
+  <style>
+    /* ===== RESET & BASE ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --blue:   #4A90D9;
+      --yellow: #F5A623;
+      --green:  #5CB85C;
+      --orange: #E87A2B;
+      --red:    #D9534F;
+      --gray:   #8E8E93;
+      --bg:     #F2F2F7;
+      --card:   #FFFFFF;
+      --border: #E5E5EA;
+      --text:   #1C1C1E;
+      --sub:    #6D6D72;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bot: env(safe-area-inset-bottom, 0px);
+    }
+    html, body {
+      height: 100%; width: 100%;
+      font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: none;
+    }
+
+    /* ===== LAYOUT ===== */
+    #app {
+      display: flex; flex-direction: column;
+      height: 100dvh;
+      max-width: 430px; margin: 0 auto;
+      position: relative;
+    }
+    header {
+      background: var(--card);
+      padding: calc(var(--safe-top) + 12px) 16px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 100;
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+    }
+    header h1 { font-size: 22px; font-weight: 700; color: var(--blue); letter-spacing: -0.5px; }
+    .header-btn {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: none; background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 18px;
+    }
+
+    /* ===== MAIN SCROLL ===== */
+    main {
+      flex: 1; overflow-y: auto; overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding: 12px 0 calc(var(--safe-bot) + 80px);
+    }
+
+    /* ===== TASK INPUT BAR ===== */
+    .input-bar {
+      position: fixed; bottom: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 100%; max-width: 430px;
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      padding: 10px 16px calc(var(--safe-bot) + 10px);
+      z-index: 200;
+    }
+    .input-row {
+      display: flex; gap: 8px; align-items: center;
+    }
+    .task-input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 22px;
+      font-size: 16px; font-family: inherit;
+      direction: rtl; text-align: right;
+      background: var(--bg);
+      outline: none;
+      transition: border-color .2s;
+    }
+    .task-input:focus { border-color: var(--blue); }
+    .task-input::placeholder { color: var(--sub); }
+    .btn-icon {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: none; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex-shrink: 0;
+      transition: transform .15s, opacity .15s;
+    }
+    .btn-icon:active { transform: scale(0.92); }
+    .btn-mic { background: #EEF4FF; color: var(--blue); }
+    .btn-mic.recording { background: var(--red); color: #fff; animation: pulse 1s infinite; }
+    .btn-add { background: var(--blue); color: #fff; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
+
+    /* ===== VIEW TOGGLE ===== */
+    .view-toggle {
+      display: flex; gap: 0;
+      background: var(--border);
+      border-radius: 10px;
+      margin: 12px 16px 8px;
+      padding: 2px;
+    }
+    .view-btn {
+      flex: 1; padding: 6px 4px;
+      border: none; background: transparent;
+      border-radius: 8px;
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      color: var(--sub); transition: all .2s;
+    }
+    .view-btn.active { background: var(--card); color: var(--blue); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+
+    /* ===== CALENDAR HEADER ===== */
+    .cal-nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 4px 16px;
+    }
+    .cal-nav h2 { font-size: 17px; font-weight: 600; }
+    .nav-arrow {
+      width: 34px; height: 34px; border: none; background: var(--bg);
+      border-radius: 50%; cursor: pointer; font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ===== WEEK VIEW ===== */
+    .week-grid {
+      padding: 8px 16px;
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
+    }
+    .day-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .day-label { font-size: 11px; color: var(--sub); font-weight: 500; }
+    .day-num {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 500; cursor: pointer;
+      transition: background .15s;
+    }
+    .day-num:hover { background: var(--bg); }
+    .day-num.today { background: var(--blue); color: #fff; font-weight: 700; }
+    .day-num.selected { background: #EEF4FF; color: var(--blue); font-weight: 700; }
+    .day-dot-row { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; min-height: 6px; }
+    .day-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+    /* ===== MONTH VIEW ===== */
+    .month-grid {
+      padding: 0 16px;
+    }
+    .month-dow-row {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      margin-bottom: 4px;
+    }
+    .month-dow { font-size: 11px; color: var(--sub); text-align: center; font-weight: 500; padding: 2px 0; }
+    .month-days-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+    }
+    .month-cell {
+      aspect-ratio: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-start;
+      padding: 2px; cursor: pointer; border-radius: 8px;
+      transition: background .15s;
+    }
+    .month-cell:hover { background: var(--bg); }
+    .month-cell .mn { font-size: 13px; font-weight: 500; padding: 2px 0; }
+    .month-cell.today .mn { background: var(--blue); color: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+    .month-cell.selected .mn { background: #EEF4FF; color: var(--blue); border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+    .month-cell.other-month .mn { color: var(--border); }
+    .month-cell .mdots { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
+    .month-cell .mdot { width: 5px; height: 5px; border-radius: 50%; }
+
+    /* ===== DAY VIEW ===== */
+    .day-view { padding: 8px 16px; }
+    .day-view-header { font-size: 15px; font-weight: 600; color: var(--sub); margin-bottom: 10px; text-align: center; }
+    .hour-row { display: flex; gap: 8px; min-height: 48px; border-top: 1px solid var(--border); }
+    .hour-label { font-size: 11px; color: var(--sub); width: 36px; padding-top: 6px; text-align: center; flex-shrink: 0; }
+    .hour-events { flex: 1; padding: 4px 0; display: flex; flex-direction: column; gap: 2px; }
+
+    /* ===== TASK LIST ===== */
+    .section-header {
+      padding: 10px 16px 6px;
+      font-size: 13px; font-weight: 600; color: var(--sub);
+      text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .task-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+
+    /* ===== TASK CARD ===== */
+    .task-card {
+      background: var(--card);
+      border-radius: 14px;
+      border-right: 4px solid var(--gray);
+      padding: 12px 14px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.06);
+      display: flex; align-items: flex-start; gap: 10px;
+      cursor: pointer; transition: transform .15s, box-shadow .15s;
+      position: relative;
+    }
+    .task-card:active { transform: scale(0.98); }
+    .task-card.done { opacity: .5; }
+    .task-card.done .task-title { text-decoration: line-through; }
+    .task-check {
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 2px solid var(--border); flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 1px; cursor: pointer; transition: all .2s;
+    }
+    .task-check.checked { background: var(--green); border-color: var(--green); color: #fff; }
+    .task-body { flex: 1; min-width: 0; }
+    .task-title { font-size: 15px; font-weight: 500; word-break: break-word; }
+    .task-meta { display: flex; gap: 8px; align-items: center; margin-top: 4px; flex-wrap: wrap; }
+    .task-tag {
+      font-size: 11px; font-weight: 600; padding: 2px 8px;
+      border-radius: 10px; color: #fff;
+    }
+    .task-time { font-size: 12px; color: var(--sub); }
+    .task-link { font-size: 12px; color: var(--blue); text-decoration: none; }
+    .task-link:hover { text-decoration: underline; }
+    .task-actions {
+      display: flex; gap: 4px; align-items: center;
+    }
+    .action-btn {
+      width: 30px; height: 30px; border-radius: 50%; border: none;
+      background: var(--bg); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; color: var(--sub);
+      transition: background .15s;
+    }
+    .action-btn:hover { background: var(--border); }
+
+    /* ===== MODAL ===== */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,.45);
+      z-index: 500; display: flex; align-items: flex-end;
+      justify-content: center;
+      animation: fadeIn .2s;
+    }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    .modal {
+      background: var(--card); width: 100%; max-width: 430px;
+      border-radius: 24px 24px 0 0;
+      padding: 20px 20px calc(var(--safe-bot) + 20px);
+      animation: slideUp .25s ease-out;
+      max-height: 92dvh; overflow-y: auto;
+    }
+    @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+    .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+    .modal h2 { font-size: 19px; font-weight: 700; margin-bottom: 20px; }
+    .field { margin-bottom: 16px; }
+    .field label { font-size: 13px; font-weight: 600; color: var(--sub); display: block; margin-bottom: 6px; }
+    .field input, .field textarea, .field select {
+      width: 100%; padding: 11px 14px;
+      border: 1.5px solid var(--border); border-radius: 12px;
+      font-size: 16px; font-family: inherit;
+      direction: rtl; text-align: right;
+      background: var(--bg); color: var(--text);
+      outline: none; transition: border-color .2s;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--blue); }
+    .field textarea { min-height: 80px; resize: vertical; }
+    .color-grid {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+    }
+    .color-opt {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      cursor: pointer;
+    }
+    .color-swatch {
+      width: 44px; height: 44px; border-radius: 50%;
+      border: 3px solid transparent; transition: all .15s;
+    }
+    .color-opt.selected .color-swatch { border-color: var(--text); transform: scale(1.1); }
+    .color-opt span { font-size: 10px; color: var(--sub); text-align: center; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .btn-primary {
+      flex: 1; padding: 14px; border: none; border-radius: 14px;
+      background: var(--blue); color: #fff;
+      font-size: 16px; font-weight: 600; cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn-primary:active { opacity: .8; }
+    .btn-secondary {
+      padding: 14px 20px; border: 1.5px solid var(--border); border-radius: 14px;
+      background: transparent; color: var(--sub);
+      font-size: 16px; font-weight: 500; cursor: pointer;
+    }
+    .btn-danger {
+      padding: 14px 20px; border: none; border-radius: 14px;
+      background: #FFF0F0; color: var(--red);
+      font-size: 16px; font-weight: 500; cursor: pointer;
+    }
+
+    /* ===== EMPTY STATE ===== */
+    .empty { text-align: center; padding: 40px 16px; color: var(--sub); }
+    .empty .icon { font-size: 48px; margin-bottom: 12px; }
+    .empty p { font-size: 16px; }
+
+    /* ===== TOAST ===== */
+    .toast {
+      position: fixed; bottom: calc(var(--safe-bot) + 80px); left: 50%;
+      transform: translateX(-50%);
+      background: rgba(30,30,30,.9); color: #fff;
+      padding: 10px 20px; border-radius: 20px;
+      font-size: 14px; z-index: 999;
+      animation: toastIn .3s, toastOut .3s 1.7s forwards;
+    }
+    @keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+    @keyframes toastOut { to{opacity:0} }
+
+    /* ===== CATEGORY MINI EVENT ===== */
+    .mini-event {
+      font-size: 11px; padding: 2px 6px; border-radius: 6px;
+      color: #fff; cursor: pointer; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    /* ===== SCROLLBAR HIDE ===== */
+    ::-webkit-scrollbar { display: none; }
+    * { scrollbar-width: none; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>MyTasks ✓</h1>
+    <button class="header-btn" id="notif-btn" title="הפעל התראות">🔔</button>
+  </header>
+
+  <main id="main-content"></main>
+
+  <!-- Input Bar -->
+  <div class="input-bar">
+    <div class="input-row">
+      <button class="btn-icon btn-mic" id="mic-btn" title="הקלטת קול">🎤</button>
+      <input
+        class="task-input" id="task-input"
+        type="text" placeholder="משימה חדשה..."
+        autocomplete="off" autocorrect="off" spellcheck="true"
+        lang="he"
+      >
+      <button class="btn-icon btn-add" id="add-btn" title="הוסף משימה">+</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Template (injected dynamically) -->
+
+<script>
+// ===== STATE =====
+const CATS = [
+  { id: 'work',     label: 'עבודה',    color: '#4A90D9', emoji: '💼' },
+  { id: 'sports',   label: 'ספורט',    color: '#F5A623', emoji: '⚽' },
+  { id: 'food',     label: 'אוכל',     color: '#5CB85C', emoji: '🍎' },
+  { id: 'event',    label: 'אירוע',    color: '#E87A2B', emoji: '🎉' },
+  { id: 'personal', label: 'אישי',     color: '#D9534F', emoji: '❤️' },
+];
+const CAT_MAP = Object.fromEntries(CATS.map(c => [c.id, c]));
+const DOW = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳']; // Sun–Sat RTL
+const MONTHS_HE = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+
+let tasks = JSON.parse(localStorage.getItem('mytasks_tasks') || '[]');
+let view = localStorage.getItem('mytasks_view') || 'week';
+let selectedDate = new Date();
+let calOffset = 0; // week/month offset from today
+let editingTaskId = null;
+let recognition = null;
+let swReg = null;
+
+const save = () => localStorage.setItem('mytasks_tasks', JSON.stringify(tasks));
+
+// ===== UTILS =====
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; }
+const sameDay = (a, b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+const fmtDate = d => d ? new Date(d).toLocaleDateString('he-IL', {day:'2-digit',month:'2-digit',year:'numeric'}) : '';
+const fmtTime = d => d ? new Date(d).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'}) : '';
+const fmtDateTime = d => d ? `${fmtDate(d)} ${fmtTime(d)}` : '';
+const getWeekStart = (offset=0) => {
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  d.setDate(d.getDate() - d.getDay() + offset * 7);
+  return d;
+};
+const getMonthStart = (offset=0) => {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth() + offset, 1);
+};
+
+// ===== TASKS ON DATE =====
+const tasksOnDate = date => tasks.filter(t => {
+  if (!t.dueDate) return false;
+  return sameDay(new Date(t.dueDate), date);
+});
+
+// ===== TOAST =====
+const showToast = msg => {
+  const el = document.createElement('div');
+  el.className = 'toast'; el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2100);
+};
+
+// ===== NOTIFICATIONS =====
+const requestNotifPermission = async () => {
+  if (!('Notification' in window)) { showToast('התראות לא נתמכות'); return; }
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') showToast('התראות הופעלו ✓');
+  else showToast('התראות נדחו');
+};
+
+const scheduleNotif = task => {
+  if (!task.dueDate || !swReg) return;
+  const ts = new Date(task.dueDate).getTime();
+  if (ts <= Date.now()) return;
+  swReg.active && swReg.active.postMessage({
+    type: 'SCHEDULE_NOTIFICATION',
+    taskId: task.id,
+    title: '⏰ ' + task.title,
+    body: task.category ? `[${CAT_MAP[task.category]?.label}] ${fmtDateTime(task.dueDate)}` : fmtDateTime(task.dueDate),
+    timestamp: ts
+  });
+};
+
+// ===== SERVICE WORKER =====
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(r => { swReg = r; });
+}
+
+// ===== VOICE INPUT =====
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+const micBtn = document.getElementById('mic-btn');
+const taskInput = document.getElementById('task-input');
+
+if (SpeechRec) {
+  recognition = new SpeechRec();
+  recognition.lang = 'he-IL';
+  recognition.continuous = false;
+  recognition.interimResults = true;
+  recognition.onresult = e => {
+    const t = Array.from(e.results).map(r => r[0].transcript).join('');
+    taskInput.value = t;
+  };
+  recognition.onend = () => micBtn.classList.remove('recording');
+  recognition.onerror = () => { micBtn.classList.remove('recording'); showToast('שגיאה בזיהוי קול'); };
+  micBtn.addEventListener('click', () => {
+    if (micBtn.classList.contains('recording')) {
+      recognition.stop();
+    } else {
+      micBtn.classList.add('recording');
+      recognition.start();
+    }
+  });
+} else {
+  micBtn.style.opacity = '0.4';
+  micBtn.title = 'זיהוי קול לא נתמך';
+}
+
+// ===== ADD TASK =====
+const addTask = () => {
+  const title = taskInput.value.trim();
+  if (!title) { taskInput.focus(); return; }
+  const task = {
+    id: uid(),
+    title,
+    dueDate: null,
+    category: null,
+    color: null,
+    link: '',
+    done: false,
+    createdAt: new Date().toISOString(),
+  };
+  tasks.unshift(task);
+  save();
+  taskInput.value = '';
+  renderAll();
+  showToast('משימה נוספה ✓');
+  openEditModal(task.id);
+};
+
+document.getElementById('add-btn').addEventListener('click', addTask);
+taskInput.addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
+document.getElementById('notif-btn').addEventListener('click', requestNotifPermission);
+
+// ===== DELETE TASK =====
+const deleteTask = id => {
+  tasks = tasks.filter(t => t.id !== id);
+  save(); renderAll(); showToast('משימה נמחקה');
+};
+
+// ===== TOGGLE DONE =====
+const toggleDone = (id, e) => {
+  e.stopPropagation();
+  const t = tasks.find(t => t.id === id);
+  if (t) { t.done = !t.done; save(); renderAll(); }
+};
+
+// ===== MODAL =====
+const openEditModal = id => {
+  editingTaskId = id;
+  const task = tasks.find(t => t.id === id) || {};
+  const dueDateLocal = task.dueDate ? new Date(task.dueDate).toISOString().slice(0,16) : '';
+
+  const html = `
+    <div class="modal-backdrop" id="modal-bd">
+      <div class="modal" id="modal">
+        <div class="modal-handle"></div>
+        <h2>${id && tasks.find(t=>t.id===id) ? 'עריכת משימה' : 'משימה חדשה'}</h2>
+
+        <div class="field">
+          <label>כותרת</label>
+          <input id="m-title" type="text" value="${escHtml(task.title||'')}" placeholder="כותרת המשימה">
+        </div>
+
+        <div class="field">
+          <label>תאריך ושעה</label>
+          <input id="m-date" type="datetime-local" value="${dueDateLocal}">
+        </div>
+
+        <div class="field">
+          <label>קישור</label>
+          <input id="m-link" type="url" value="${escHtml(task.link||'')}" placeholder="https://...">
+        </div>
+
+        <div class="field">
+          <label>קטגוריה וצבע</label>
+          <div class="color-grid">
+            ${CATS.map(c => `
+              <div class="color-opt ${task.category===c.id?'selected':''}" data-cat="${c.id}" onclick="selectCat('${c.id}')">
+                <div class="color-swatch" style="background:${c.color}"></div>
+                <span>${c.emoji} ${c.label}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          ${task.id ? `<button class="btn-danger" onclick="deleteTaskFromModal()">מחק</button>` : ''}
+          <button class="btn-secondary" onclick="closeModal()">ביטול</button>
+          <button class="btn-primary" onclick="saveTask()">שמור</button>
+        </div>
+      </div>
+    </div>`;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  document.getElementById('modal-bd').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-bd')) closeModal();
+  });
+  document.getElementById('m-title').focus();
+};
+
+const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+const selectCat = id => {
+  document.querySelectorAll('.color-opt').forEach(el => {
+    el.classList.toggle('selected', el.dataset.cat === id);
+  });
+};
+
+const closeModal = () => {
+  const bd = document.getElementById('modal-bd');
+  if (bd) bd.remove();
+  editingTaskId = null;
+};
+
+const saveTask = () => {
+  const title = document.getElementById('m-title').value.trim();
+  if (!title) { showToast('יש להזין כותרת'); return; }
+  const dateVal = document.getElementById('m-date').value;
+  const link = document.getElementById('m-link').value.trim();
+  const selectedCat = document.querySelector('.color-opt.selected');
+  const catId = selectedCat ? selectedCat.dataset.cat : null;
+
+  let task = tasks.find(t => t.id === editingTaskId);
+  if (!task) {
+    task = { id: uid(), createdAt: new Date().toISOString(), done: false };
+    tasks.unshift(task);
+  }
+  task.title = title;
+  task.dueDate = dateVal ? new Date(dateVal).toISOString() : null;
+  task.link = link;
+  task.category = catId;
+  task.color = catId ? CAT_MAP[catId].color : null;
+
+  save();
+  if (task.dueDate) scheduleNotif(task);
+  closeModal();
+  renderAll();
+  showToast('נשמר ✓');
+};
+
+const deleteTaskFromModal = () => {
+  if (editingTaskId) { deleteTask(editingTaskId); closeModal(); }
+};
+
+// ===== RENDER =====
+const renderAll = () => {
+  const main = document.getElementById('main-content');
+  main.innerHTML = renderViewToggle() + renderCalendar() + renderTaskSection();
+};
+
+const renderViewToggle = () => `
+  <div class="view-toggle">
+    <button class="view-btn ${view==='list'?'active':''}" onclick="setView('list')">רשימה</button>
+    <button class="view-btn ${view==='day'?'active':''}" onclick="setView('day')">יום</button>
+    <button class="view-btn ${view==='week'?'active':''}" onclick="setView('week')">שבוע</button>
+    <button class="view-btn ${view==='month'?'active':''}" onclick="setView('month')">חודש</button>
+  </div>`;
+
+const setView = v => {
+  view = v; calOffset = 0;
+  localStorage.setItem('mytasks_view', v);
+  renderAll();
+};
+
+// ===== CALENDAR =====
+const renderCalendar = () => {
+  if (view === 'list') return '';
+  if (view === 'week') return renderWeek();
+  if (view === 'month') return renderMonth();
+  if (view === 'day') return renderDayNav();
+  return '';
+};
+
+const navLabel = () => {
+  if (view === 'week') {
+    const ws = getWeekStart(calOffset);
+    const we = new Date(ws); we.setDate(we.getDate() + 6);
+    if (ws.getMonth() === we.getMonth()) {
+      return `${ws.getDate()}–${we.getDate()} ${MONTHS_HE[ws.getMonth()]} ${ws.getFullYear()}`;
+    }
+    return `${ws.getDate()} ${MONTHS_HE[ws.getMonth()]} – ${we.getDate()} ${MONTHS_HE[we.getMonth()]}`;
+  }
+  if (view === 'month') {
+    const ms = getMonthStart(calOffset);
+    return `${MONTHS_HE[ms.getMonth()]} ${ms.getFullYear()}`;
+  }
+  if (view === 'day') {
+    return selectedDate.toLocaleDateString('he-IL', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  }
+  return '';
+};
+
+const renderWeek = () => {
+  const ws = getWeekStart(calOffset);
+  const t0 = today();
+  let cols = '';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(ws); d.setDate(d.getDate() + i);
+    const isTod = sameDay(d, t0);
+    const isSel = sameDay(d, selectedDate);
+    const dayTasks = tasksOnDate(d);
+    const dots = dayTasks.slice(0,3).map(t => `<span class="day-dot" style="background:${t.color||'#8E8E93'}"></span>`).join('');
+    cols += `
+      <div class="day-col">
+        <span class="day-label">${DOW[i]}</span>
+        <div class="day-num ${isTod?'today':''} ${isSel&&!isTod?'selected':''}"
+          onclick="selectDay(${d.getTime()})">${d.getDate()}</div>
+        <div class="day-dot-row">${dots}</div>
+      </div>`;
+  }
+  return `
+    <div class="cal-nav">
+      <button class="nav-arrow" onclick="changeOffset(1)">‹</button>
+      <h2>${navLabel()}</h2>
+      <button class="nav-arrow" onclick="changeOffset(-1)">›</button>
+    </div>
+    <div class="week-grid">${cols}</div>`;
+};
+
+const renderMonth = () => {
+  const ms = getMonthStart(calOffset);
+  const t0 = today();
+  const year = ms.getFullYear(), month = ms.getMonth();
+  const firstDow = ms.getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrev = new Date(year, month, 0).getDate();
+  let cells = '';
+  // Header
+  const dowHdr = DOW.map(d => `<div class="month-dow">${d}</div>`).join('');
+  // Cells: start from Sunday
+  for (let i = 0; i < 42; i++) {
+    let day, isOther = false, date;
+    if (i < firstDow) { day = daysInPrev - firstDow + i + 1; isOther = true; date = new Date(year, month - 1, day); }
+    else if (i >= firstDow + daysInMonth) { day = i - firstDow - daysInMonth + 1; isOther = true; date = new Date(year, month + 1, day); }
+    else { day = i - firstDow + 1; date = new Date(year, month, day); }
+    const isTod = sameDay(date, t0);
+    const isSel = sameDay(date, selectedDate);
+    const dayTasks = tasksOnDate(date);
+    const dots = dayTasks.slice(0,3).map(t => `<span class="mdot" style="background:${t.color||'#8E8E93'}"></span>`).join('');
+    cells += `
+      <div class="month-cell ${isOther?'other-month':''} ${isTod?'today':''} ${isSel&&!isTod?'selected':''}"
+        onclick="selectDay(${date.getTime()})">
+        <div class="mn">${day}</div>
+        <div class="mdots">${dots}</div>
+      </div>`;
+  }
+  return `
+    <div class="cal-nav">
+      <button class="nav-arrow" onclick="changeOffset(1)">‹</button>
+      <h2>${navLabel()}</h2>
+      <button class="nav-arrow" onclick="changeOffset(-1)">›</button>
+    </div>
+    <div class="month-grid">
+      <div class="month-dow-row">${dowHdr}</div>
+      <div class="month-days-grid">${cells}</div>
+    </div>`;
+};
+
+const renderDayNav = () => {
+  return `
+    <div class="cal-nav">
+      <button class="nav-arrow" onclick="changeOffset(1)">‹</button>
+      <h2>${navLabel()}</h2>
+      <button class="nav-arrow" onclick="changeOffset(-1)">›</button>
+    </div>
+    ${renderDayHours()}`;
+};
+
+const renderDayHours = () => {
+  const dayTasks = tasksOnDate(selectedDate);
+  const bucketed = {};
+  dayTasks.forEach(t => {
+    const h = t.dueDate ? new Date(t.dueDate).getHours() : -1;
+    if (!bucketed[h]) bucketed[h] = [];
+    bucketed[h].push(t);
+  });
+  let rows = '';
+  for (let h = 6; h <= 23; h++) {
+    const ts = (bucketed[h] || []);
+    const events = ts.map(t => `
+      <div class="mini-event" style="background:${t.color||'#8E8E93'}" onclick="openEditModal('${t.id}')">
+        ${escHtml(t.title)}
+      </div>`).join('');
+    rows += `
+      <div class="hour-row">
+        <div class="hour-label">${h}:00</div>
+        <div class="hour-events">${events}</div>
+      </div>`;
+  }
+  return `<div class="day-view">${rows}</div>`;
+};
+
+const selectDay = ts => {
+  selectedDate = new Date(ts);
+  renderAll();
+};
+
+const changeOffset = delta => {
+  if (view === 'day') {
+    selectedDate.setDate(selectedDate.getDate() + delta);
+  } else {
+    calOffset += delta;
+  }
+  renderAll();
+};
+
+// ===== TASK SECTION =====
+const renderTaskSection = () => {
+  let filtered;
+  if (view === 'list') {
+    filtered = [...tasks].sort((a, b) => {
+      if (a.dueDate && b.dueDate) return new Date(a.dueDate) - new Date(b.dueDate);
+      if (a.dueDate) return -1;
+      if (b.dueDate) return 1;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+  } else {
+    filtered = tasksOnDate(selectedDate);
+  }
+
+  if (view !== 'list' && view !== 'day') {
+    // Show tasks for selected day below calendar in week/month view
+    const label = selectedDate.toLocaleDateString('he-IL', {weekday:'long', day:'numeric', month:'long'});
+    return `<div class="section-header">משימות – ${label}</div>` + renderTaskCards(filtered);
+  }
+  if (view === 'day') {
+    return ''; // day view shows tasks inline in hours
+  }
+  // List view
+  const withDate = filtered.filter(t => t.dueDate);
+  const noDate = filtered.filter(t => !t.dueDate);
+  let out = '';
+  if (withDate.length) out += '<div class="section-header">עם תאריך</div>' + renderTaskCards(withDate);
+  if (noDate.length) out += '<div class="section-header">ללא תאריך</div>' + renderTaskCards(noDate);
+  if (!filtered.length) out = `<div class="empty"><div class="icon">📋</div><p>אין משימות עדיין</p></div>`;
+  return out;
+};
+
+const renderTaskCards = tasks => {
+  if (!tasks.length) return `<div class="empty"><div class="icon">✨</div><p>אין משימות ביום זה</p></div>`;
+  return `<div class="task-list">${tasks.map(renderTask).join('')}</div>`;
+};
+
+const renderTask = t => {
+  const cat = t.category ? CAT_MAP[t.category] : null;
+  const color = t.color || '#8E8E93';
+  const tag = cat ? `<span class="task-tag" style="background:${color}">${cat.emoji} ${cat.label}</span>` : '';
+  const timeStr = t.dueDate ? `<span class="task-time">⏰ ${fmtDateTime(t.dueDate)}</span>` : '';
+  const linkEl = t.link ? `<a class="task-link" href="${escHtml(t.link)}" target="_blank" onclick="event.stopPropagation()">🔗 קישור</a>` : '';
+  const created = `<span class="task-time">נוצר: ${fmtDateTime(t.createdAt)}</span>`;
+  return `
+    <div class="task-card ${t.done?'done':''}" style="border-right-color:${color}" onclick="openEditModal('${t.id}')">
+      <div class="task-check ${t.done?'checked':''}" onclick="toggleDone('${t.id}',event)">${t.done?'✓':''}</div>
+      <div class="task-body">
+        <div class="task-title">${escHtml(t.title)}</div>
+        <div class="task-meta">${tag}${timeStr}${linkEl}</div>
+        <div class="task-meta">${created}</div>
+      </div>
+      <div class="task-actions">
+        <button class="action-btn" onclick="event.stopPropagation();deleteTask('${t.id}')" title="מחק">🗑️</button>
+      </div>
+    </div>`;
+};
+
+// ===== INIT =====
+renderAll();
+
+// Re-schedule notifications for existing tasks on load
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.ready.then(reg => {
+    swReg = reg;
+    tasks.forEach(t => { if (t.dueDate && !t.done) scheduleNotif(t); });
+  });
+}
+</script>
+</body>
+</html>

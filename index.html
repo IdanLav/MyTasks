@@ -653,7 +653,8 @@ const updateInputBar = () => {
 const addTask = () => {
   const title = taskInput.value.trim();
   if (!title) { taskInput.focus(); return; }
-  const task = { id: uid(), title, dueDate: null, notifDate: null, category: null, color: null, link: '', done: false, createdAt: new Date().toISOString() };
+  const now = new Date().toISOString();
+  const task = { id: uid(), title, dueDate: now, notifDate: null, category: null, color: null, link: '', done: false, createdAt: now };
   tasks.unshift(task);
   save(); taskInput.value = '';
   renderAll(); showToast('משימה נוספה – לחץ לעריכה ✓');

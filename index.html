@@ -238,6 +238,29 @@
     @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
     .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
     .modal h2 { font-size: 19px; font-weight: 700; margin-bottom: 20px; }
+    /* ===== DATES BLOCK ===== */
+    .dates-block {
+      background: var(--bg); border-radius: 14px;
+      padding: 4px 0; margin-bottom: 16px;
+      border: 1.5px solid var(--border);
+      overflow: hidden;
+    }
+    .date-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 11px 14px; border-bottom: 1px solid var(--border);
+    }
+    .date-row:last-child { border-bottom: none; }
+    .date-icon { font-size: 18px; flex-shrink: 0; }
+    .date-col { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .date-label { font-size: 11px; font-weight: 600; color: var(--sub); }
+    .date-value { font-size: 14px; color: var(--text); }
+    .date-input {
+      width: 100%; border: none; background: transparent;
+      font-size: 14px; font-family: inherit; color: var(--text);
+      direction: rtl; text-align: right; outline: none; padding: 0;
+    }
+    .date-input::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: pointer; }
+
     .field { margin-bottom: 16px; }
     .field label { font-size: 13px; font-weight: 600; color: var(--sub); display: block; margin-bottom: 6px; }
     .field input, .field textarea, .field select {
@@ -483,7 +506,7 @@ const requestNotifPermission = async () => {
   const p = await Notification.requestPermission();
   if (p === 'granted') {
     showToast('התראות הופעלו ✓');
-    tasks.forEach(t => { if (t.dueDate && !t.done) scheduleNotif(t); });
+    tasks.forEach(t => { if ((t.notifDate || t.dueDate) && !t.done) scheduleNotif(t); });
   } else if (p === 'denied') {
     showToast('התראות חסומות – אפשר בהגדרות האייפון');
   } else {
@@ -497,15 +520,17 @@ const fireNotif = (title, opts) => {
 };
 
 const scheduleNotif = task => {
-  if (!task.dueDate || task.done) return;
+  // notifDate drives the alert; fall back to dueDate if not set
+  const alertDate = task.notifDate || task.dueDate;
+  if (!alertDate || task.done) return;
   if (pendingNotifs[task.id]) clearTimeout(pendingNotifs[task.id]);
-  const delay = new Date(task.dueDate).getTime() - Date.now();
+  const delay = new Date(alertDate).getTime() - Date.now();
   if (delay <= 0) return;
 
   pendingNotifs[task.id] = setTimeout(() => {
     delete pendingNotifs[task.id];
     if (Notification.permission !== 'granted') return;
-    const body = (task.category ? `[${CAT_MAP[task.category]?.label}] ` : '') + fmtDateTime(task.dueDate);
+    const body = (task.category ? `[${CAT_MAP[task.category]?.label}] ` : '') + fmtDateTime(alertDate);
     const base = { body, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', requireInteraction: true, vibrate: [300,100,300,100,300,100,600], renotify: true };
     fireNotif('⏰ ' + task.title, { ...base, tag: `t-${task.id}-1` });
     setTimeout(() => fireNotif('🔔🔔 ' + task.title, { ...base, tag: `t-${task.id}-2` }), 5000);
@@ -520,7 +545,7 @@ const cancelNotif = id => {
 // Reschedule on app focus (handles re-open after background)
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && Notification.permission === 'granted') {
-    tasks.forEach(t => { if (t.dueDate && !t.done) scheduleNotif(t); });
+    tasks.forEach(t => { if ((t.notifDate || t.dueDate) && !t.done) scheduleNotif(t); });
   }
 });
 
@@ -628,7 +653,7 @@ const updateInputBar = () => {
 const addTask = () => {
   const title = taskInput.value.trim();
   if (!title) { taskInput.focus(); return; }
-  const task = { id: uid(), title, dueDate: null, category: null, color: null, link: '', done: false, createdAt: new Date().toISOString() };
+  const task = { id: uid(), title, dueDate: null, notifDate: null, category: null, color: null, link: '', done: false, createdAt: new Date().toISOString() };
   tasks.unshift(task);
   save(); taskInput.value = '';
   renderAll(); showToast('משימה נוספה – לחץ לעריכה ✓');
@@ -646,7 +671,9 @@ const toLocalISO = d => new Date(d.getTime() - d.getTimezoneOffset()*60000).toIS
 const openEditModal = id => {
   editingTaskId = id;
   const task = tasks.find(t => t.id === id) || {};
-  const dueDateLocal = task.dueDate ? toLocalISO(new Date(task.dueDate)) : toLocalISO(new Date());
+  const dueDateLocal    = task.dueDate    ? toLocalISO(new Date(task.dueDate))    : toLocalISO(new Date());
+  const notifDateLocal  = task.notifDate  ? toLocalISO(new Date(task.notifDate))  : '';
+  const createdDisplay  = task.createdAt  ? fmtDateTime(task.createdAt)           : fmtDateTime(new Date().toISOString());
   document.body.insertAdjacentHTML('beforeend', `
     <div class="modal-backdrop" id="modal-bd">
       <div class="modal" id="modal">
@@ -656,10 +683,31 @@ const openEditModal = id => {
           <label>כותרת</label>
           <input id="m-title" type="text" value="${escHtml(task.title||'')}" placeholder="כותרת המשימה">
         </div>
-        <div class="field">
-          <label>תאריך ושעה</label>
-          <input id="m-date" type="datetime-local" value="${dueDateLocal}">
+
+        <div class="dates-block">
+          <div class="date-row">
+            <span class="date-icon">🕐</span>
+            <div class="date-col">
+              <span class="date-label">יצירה</span>
+              <span class="date-value">${createdDisplay}</span>
+            </div>
+          </div>
+          <div class="date-row">
+            <span class="date-icon">📅</span>
+            <div class="date-col">
+              <span class="date-label">תזמון</span>
+              <input id="m-date" type="datetime-local" value="${dueDateLocal}" class="date-input">
+            </div>
+          </div>
+          <div class="date-row">
+            <span class="date-icon">🔔</span>
+            <div class="date-col">
+              <span class="date-label">התראה</span>
+              <input id="m-notif" type="datetime-local" value="${notifDateLocal}" class="date-input">
+            </div>
+          </div>
         </div>
+
         <div class="field">
           <label>קישור</label>
           <input id="m-link" type="url" value="${escHtml(task.link||'')}" placeholder="https://...">
@@ -691,21 +739,23 @@ const selectCat = id => {
   document.querySelectorAll('.color-opt').forEach(el => el.classList.toggle('selected', el.dataset.cat === id));
 };
 const saveTask = () => {
-  const title = document.getElementById('m-title').value.trim();
+  const title     = document.getElementById('m-title').value.trim();
   if (!title) { showToast('יש להזין כותרת'); return; }
-  const dateVal = document.getElementById('m-date').value;
-  const link    = document.getElementById('m-link').value.trim();
-  const catEl   = document.querySelector('.color-opt.selected');
-  const catId   = catEl ? catEl.dataset.cat : null;
+  const dateVal   = document.getElementById('m-date').value;
+  const notifVal  = document.getElementById('m-notif').value;
+  const link      = document.getElementById('m-link').value.trim();
+  const catEl     = document.querySelector('.color-opt.selected');
+  const catId     = catEl ? catEl.dataset.cat : null;
   let task = tasks.find(t => t.id === editingTaskId);
   if (!task) { task = { id: uid(), createdAt: new Date().toISOString(), done: false }; tasks.unshift(task); }
-  task.title    = title;
-  task.dueDate  = dateVal ? new Date(dateVal).toISOString() : null;
-  task.link     = link;
-  task.category = catId;
-  task.color    = catId ? CAT_MAP[catId].color : null;
+  task.title     = title;
+  task.dueDate   = dateVal  ? new Date(dateVal).toISOString()  : null;
+  task.notifDate = notifVal ? new Date(notifVal).toISOString() : null;
+  task.link      = link;
+  task.category  = catId;
+  task.color     = catId ? CAT_MAP[catId].color : null;
   save();
-  if (task.dueDate) scheduleNotif(task);
+  scheduleNotif(task);
   closeModal(); renderAll(); showToast('נשמר ✓');
 };
 const deleteTaskFromModal = () => { if (editingTaskId) { deleteTask(editingTaskId); closeModal(); } };
@@ -1075,15 +1125,18 @@ const renderTaskCards = list => {
 const renderTask = t => {
   const cat   = t.category ? CAT_MAP[t.category] : null;
   const color = t.color || '#8E8E93';
-  const tag     = cat ? `<span class="task-tag" style="background:${color}">${cat.emoji} ${cat.label}</span>` : '';
-  const timeStr = t.dueDate ? `<span class="task-time">⏰ ${fmtDateTime(t.dueDate)}</span>` : '';
-  const linkEl  = t.link ? `<a class="task-link" href="${escHtml(t.link)}" target="_blank" onclick="event.stopPropagation()">🔗 קישור</a>` : '';
-  const created = `<span class="task-time">נוצר: ${fmtDateTime(t.createdAt)}</span>`;
+  const tag       = cat ? `<span class="task-tag" style="background:${color}">${cat.emoji} ${cat.label}</span>` : '';
+  const schedStr  = t.dueDate    ? `<span class="task-time">📅 ${fmtDateTime(t.dueDate)}</span>`    : '';
+  const notifStr  = t.notifDate  ? `<span class="task-time">🔔 ${fmtDateTime(t.notifDate)}</span>`  : '';
+  const linkEl    = t.link ? `<a class="task-link" href="${escHtml(t.link)}" target="_blank" onclick="event.stopPropagation()">🔗 קישור</a>` : '';
+  const created   = `<span class="task-time">🕐 ${fmtDateTime(t.createdAt)}</span>`;
   return `<div class="task-card ${t.done?'done':''}" style="border-right-color:${color}" onclick="openEditModal('${t.id}')">
     <div class="task-check ${t.done?'checked':''}" onclick="toggleDone('${t.id}',event)">${t.done?'✓':''}</div>
     <div class="task-body">
       <div class="task-title">${escHtml(t.title)}</div>
-      <div class="task-meta">${tag}${timeStr}${linkEl}</div>
+      <div class="task-meta">${tag}${linkEl}</div>
+      ${schedStr  ? `<div class="task-meta">${schedStr}</div>`  : ''}
+      ${notifStr  ? `<div class="task-meta">${notifStr}</div>`  : ''}
       <div class="task-meta">${created}</div>
     </div>
     <div class="task-actions">
@@ -1124,7 +1177,7 @@ renderAll();
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.ready.then(reg => {
     swReg = reg;
-    tasks.forEach(t => { if (t.dueDate && !t.done) scheduleNotif(t); });
+    tasks.forEach(t => { if ((t.notifDate || t.dueDate) && !t.done) scheduleNotif(t); });
   });
 }
 </script>

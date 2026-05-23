@@ -463,23 +463,75 @@ const showToast = msg => {
 };
 
 // ===== NOTIFICATIONS =====
+const pendingNotifs = {}; // taskId → timeoutId
+
+const showIosInstallGuide = () => {
+  if (document.getElementById('ios-guide')) return;
+  const el = document.createElement('div');
+  el.id = 'ios-guide';
+  el.style.cssText = 'position:fixed;bottom:80px;left:12px;right:12px;background:#1C1C1E;color:#fff;padding:16px 18px;border-radius:18px;font-size:14px;z-index:9999;line-height:1.7;box-shadow:0 8px 32px rgba(0,0,0,.4)';
+  el.innerHTML = `<div style="font-weight:700;font-size:15px;margin-bottom:8px">📲 התקנה כ-PWA נדרשת להתראות</div>
+    <div>1. לחץ <strong>🔗 שתף</strong> בספארי</div>
+    <div>2. בחר <strong>"הוסף למסך הבית"</strong></div>
+    <div>3. פתח מהמסך הבית ואשר התראות</div>
+    <button onclick="document.getElementById('ios-guide').remove()" style="margin-top:12px;padding:9px 22px;background:#4A90D9;border:none;border-radius:12px;color:#fff;font-size:14px;cursor:pointer;font-family:inherit;font-weight:600">הבנתי</button>`;
+  document.body.appendChild(el);
+};
+
 const requestNotifPermission = async () => {
-  if (!('Notification' in window)) { showToast('התראות לא נתמכות'); return; }
+  const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const isPwa = window.navigator.standalone === true;
+
+  if (!('Notification' in window)) {
+    if (isIos && !isPwa) { showIosInstallGuide(); }
+    else { showToast('התראות לא נתמכות בדפדפן זה'); }
+    return;
+  }
+  if (isIos && !isPwa) { showIosInstallGuide(); return; }
+
   const p = await Notification.requestPermission();
-  showToast(p === 'granted' ? 'התראות הופעלו ✓' : 'התראות נדחו');
+  if (p === 'granted') {
+    showToast('התראות הופעלו ✓');
+    tasks.forEach(t => { if (t.dueDate && !t.done) scheduleNotif(t); });
+  } else if (p === 'denied') {
+    showToast('התראות חסומות – אפשר בהגדרות האייפון');
+  } else {
+    showToast('יש לאשר התראות');
+  }
 };
+
+const fireNotif = (title, opts) => {
+  if (swReg) return swReg.showNotification(title, opts);
+  return Promise.resolve(new Notification(title, opts));
+};
+
 const scheduleNotif = task => {
-  if (!task.dueDate || !swReg) return;
-  const ts = new Date(task.dueDate).getTime();
-  if (ts <= Date.now()) return;
-  swReg.active && swReg.active.postMessage({
-    type: 'SCHEDULE_NOTIFICATION',
-    taskId: task.id,
-    title: '⏰ ' + task.title,
-    body: task.category ? `[${CAT_MAP[task.category]?.label}] ${fmtDateTime(task.dueDate)}` : fmtDateTime(task.dueDate),
-    timestamp: ts
-  });
+  if (!task.dueDate || task.done) return;
+  if (pendingNotifs[task.id]) clearTimeout(pendingNotifs[task.id]);
+  const delay = new Date(task.dueDate).getTime() - Date.now();
+  if (delay <= 0) return;
+
+  pendingNotifs[task.id] = setTimeout(() => {
+    delete pendingNotifs[task.id];
+    if (Notification.permission !== 'granted') return;
+    const body = (task.category ? `[${CAT_MAP[task.category]?.label}] ` : '') + fmtDateTime(task.dueDate);
+    const base = { body, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', requireInteraction: true, vibrate: [300,100,300,100,300,100,600], renotify: true };
+    fireNotif('⏰ ' + task.title, { ...base, tag: `t-${task.id}-1` });
+    setTimeout(() => fireNotif('🔔🔔 ' + task.title, { ...base, tag: `t-${task.id}-2` }), 5000);
+    setTimeout(() => fireNotif('‼️ ' + task.title + ' ‼️', { ...base, tag: `t-${task.id}-3` }), 10000);
+  }, delay);
 };
+
+const cancelNotif = id => {
+  if (pendingNotifs[id]) { clearTimeout(pendingNotifs[id]); delete pendingNotifs[id]; }
+};
+
+// Reschedule on app focus (handles re-open after background)
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && Notification.permission === 'granted') {
+    tasks.forEach(t => { if (t.dueDate && !t.done) scheduleNotif(t); });
+  }
+});
 
 // ===== SERVICE WORKER =====
 if ('serviceWorker' in navigator) {
@@ -570,10 +622,9 @@ const addTask = () => {
   const task = { id: uid(), title, dueDate: null, category: null, color: null, link: '', done: false, createdAt: new Date().toISOString() };
   tasks.unshift(task);
   save(); taskInput.value = '';
-  renderAll(); showToast('משימה נוספה ✓');
-  openEditModal(task.id);
+  renderAll(); showToast('משימה נוספה – לחץ לעריכה ✓');
 };
-const deleteTask = id => { tasks = tasks.filter(t => t.id !== id); save(); renderAll(); showToast('משימה נמחקה'); };
+const deleteTask = id => { cancelNotif(id); tasks = tasks.filter(t => t.id !== id); save(); renderAll(); showToast('משימה נמחקה'); };
 const toggleDone = (id, e) => {
   e.stopPropagation();
   const t = tasks.find(t => t.id === id);
@@ -581,10 +632,12 @@ const toggleDone = (id, e) => {
 };
 
 // Task modal
+const toLocalISO = d => new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+
 const openEditModal = id => {
   editingTaskId = id;
   const task = tasks.find(t => t.id === id) || {};
-  const dueDateLocal = task.dueDate ? new Date(task.dueDate).toISOString().slice(0,16) : '';
+  const dueDateLocal = task.dueDate ? toLocalISO(new Date(task.dueDate)) : toLocalISO(new Date());
   document.body.insertAdjacentHTML('beforeend', `
     <div class="modal-backdrop" id="modal-bd">
       <div class="modal" id="modal">
@@ -654,8 +707,7 @@ const addNote = () => {
   const note = { id: uid(), content: text, sketchData: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
   notes.unshift(note);
   saveNotes(); taskInput.value = '';
-  renderAll();
-  openNoteModal(note.id);
+  renderAll(); showToast('פתק נוסף – לחץ לעריכה ✓');
 };
 const deleteNote = id => { notes = notes.filter(n => n.id !== id); saveNotes(); renderAll(); showToast('פתק נמחק'); };
 
@@ -678,12 +730,12 @@ const openNoteModal = id => {
         </div>
 
         <div class="note-tab-bar">
-          <button class="note-tab active" data-tab="text"   onclick="switchNoteTab('text')">✏️ כתיבה / קול</button>
-          <button class="note-tab"        data-tab="sketch" onclick="switchNoteTab('sketch')">🎨 סקיצה</button>
+          <button class="note-tab"        data-tab="text"   onclick="switchNoteTab('text')">✏️ כתיבה / קול</button>
+          <button class="note-tab active" data-tab="sketch" onclick="switchNoteTab('sketch')">🎨 סקיצה</button>
         </div>
 
         <!-- TEXT / VOICE TAB -->
-        <div id="note-tab-text" class="note-tab-content">
+        <div id="note-tab-text" class="note-tab-content" style="display:none">
           <div class="note-text-header">
             <button class="btn-icon btn-mic" id="note-mic-btn" onclick="toggleNoteMic()" title="דקלום קולי">🎤</button>
             <span class="note-mic-label">לחץ לדקלום קולי בעברית</span>
@@ -692,7 +744,7 @@ const openNoteModal = id => {
         </div>
 
         <!-- SKETCH TAB -->
-        <div id="note-tab-sketch" class="note-tab-content" style="display:none">
+        <div id="note-tab-sketch" class="note-tab-content">
           <div class="sketch-toolbar">
             <button class="sketch-tool ${sketchMode==='pen'?'active':''}"    id="sk-pen"    onclick="setSketchMode('pen')">✏️</button>
             <button class="sketch-tool ${sketchMode==='eraser'?'active':''}" id="sk-eraser" onclick="setSketchMode('eraser')">🧹</button>
@@ -722,7 +774,12 @@ const openNoteModal = id => {
   document.getElementById('note-modal-bd').addEventListener('click', e => {
     if (e.target.id === 'note-modal-bd') closeNoteModal();
   });
-  document.getElementById('note-textarea').focus();
+
+  // Canvas is visible by default — init after DOM paint
+  requestAnimationFrame(() => {
+    initSketchCanvas(note.sketchData);
+    sketchInitialized = true;
+  });
 };
 
 const closeNoteModal = () => {
@@ -751,11 +808,7 @@ const switchNoteTab = tab => {
   document.querySelectorAll('.note-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.getElementById('note-tab-text').style.display   = tab === 'text'   ? '' : 'none';
   document.getElementById('note-tab-sketch').style.display = tab === 'sketch' ? '' : 'none';
-  if (tab === 'sketch' && !sketchInitialized) {
-    const note = notes.find(n => n.id === editingNoteId) || {};
-    initSketchCanvas(note.sketchData);
-    sketchInitialized = true;
-  }
+  if (tab === 'text') document.getElementById('note-textarea')?.focus();
 };
 
 // ===== SKETCH ENGINE =====
@@ -869,10 +922,10 @@ const renderAll = () => {
 const renderViewToggle = () => `
   <div class="view-toggle">
     <button class="view-btn ${view==='list'  ?'active':''}"  onclick="setView('list')">רשימה</button>
-    <button class="view-btn ${view==='notes' ?'active notes-active':''}" onclick="setView('notes')">📝 פתקים</button>
     <button class="view-btn ${view==='day'   ?'active':''}"  onclick="setView('day')">יום</button>
     <button class="view-btn ${view==='week'  ?'active':''}"  onclick="setView('week')">שבוע</button>
     <button class="view-btn ${view==='month' ?'active':''}"  onclick="setView('month')">חודש</button>
+    <button class="view-btn ${view==='notes' ?'active notes-active':''}" onclick="setView('notes')">📝 פתקים</button>
   </div>`;
 
 const setView = v => {

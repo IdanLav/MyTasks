@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mytasks-v1';
+const CACHE_NAME = 'mytasks-v2';
 const ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', e => {
@@ -21,25 +21,8 @@ self.addEventListener('fetch', e => {
 
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  e.waitUntil(clients.openWindow('/'));
-});
-
-self.addEventListener('message', e => {
-  if (e.data && e.data.type === 'SCHEDULE_NOTIFICATION') {
-    const { taskId, title, body, timestamp } = e.data;
-    const delay = timestamp - Date.now();
-    if (delay > 0) {
-      setTimeout(() => {
-        self.registration.showNotification(title, {
-          body,
-          icon: '/icons/icon-192.png',
-          badge: '/icons/icon-192.png',
-          tag: `task-${taskId}`,
-          requireInteraction: true,
-          vibrate: [200, 100, 200, 100, 200, 100, 400],
-          renotify: true
-        });
-      }, delay);
-    }
-  }
+  e.waitUntil(clients.matchAll({ type: 'window' }).then(list => {
+    for (const c of list) { if (c.url.includes('/') && 'focus' in c) return c.focus(); }
+    return clients.openWindow('/');
+  }));
 });

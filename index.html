@@ -25,14 +25,14 @@
       --border: #E5E5EA;
       --text:   #1C1C1E;
       --sub:    #6D6D72;
+      --note-bg: #FFFEF5;
       --safe-top: env(safe-area-inset-top, 0px);
       --safe-bot: env(safe-area-inset-bottom, 0px);
     }
     html, body {
       height: 100%; width: 100%;
       font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      background: var(--bg); color: var(--text);
       -webkit-tap-highlight-color: transparent;
       overscroll-behavior: none;
     }
@@ -40,9 +40,7 @@
     /* ===== LAYOUT ===== */
     #app {
       display: flex; flex-direction: column;
-      height: 100dvh;
-      max-width: 430px; margin: 0 auto;
-      position: relative;
+      height: 100dvh; max-width: 430px; margin: 0 auto;
     }
     header {
       background: var(--card);
@@ -60,37 +58,28 @@
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; font-size: 18px;
     }
-
-    /* ===== MAIN SCROLL ===== */
     main {
       flex: 1; overflow-y: auto; overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
       padding: 12px 0 calc(var(--safe-bot) + 80px);
     }
 
-    /* ===== TASK INPUT BAR ===== */
+    /* ===== INPUT BAR ===== */
     .input-bar {
       position: fixed; bottom: 0; left: 50%;
       transform: translateX(-50%);
       width: 100%; max-width: 430px;
-      background: var(--card);
-      border-top: 1px solid var(--border);
+      background: var(--card); border-top: 1px solid var(--border);
       padding: 10px 16px calc(var(--safe-bot) + 10px);
       z-index: 200;
     }
-    .input-row {
-      display: flex; gap: 8px; align-items: center;
-    }
+    .input-row { display: flex; gap: 8px; align-items: center; }
     .task-input {
-      flex: 1;
-      padding: 10px 14px;
-      border: 1.5px solid var(--border);
-      border-radius: 22px;
+      flex: 1; padding: 10px 14px;
+      border: 1.5px solid var(--border); border-radius: 22px;
       font-size: 16px; font-family: inherit;
       direction: rtl; text-align: right;
-      background: var(--bg);
-      outline: none;
-      transition: border-color .2s;
+      background: var(--bg); outline: none; transition: border-color .2s;
     }
     .task-input:focus { border-color: var(--blue); }
     .task-input::placeholder { color: var(--sub); }
@@ -105,26 +94,24 @@
     .btn-mic { background: #EEF4FF; color: var(--blue); }
     .btn-mic.recording { background: var(--red); color: #fff; animation: pulse 1s infinite; }
     .btn-add { background: var(--blue); color: #fff; }
+    .btn-add.note-mode { background: var(--yellow); }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.7} }
 
     /* ===== VIEW TOGGLE ===== */
     .view-toggle {
-      display: flex; gap: 0;
-      background: var(--border);
-      border-radius: 10px;
-      margin: 12px 16px 8px;
-      padding: 2px;
+      display: flex; background: var(--border);
+      border-radius: 10px; margin: 12px 16px 8px; padding: 2px;
     }
     .view-btn {
-      flex: 1; padding: 6px 4px;
-      border: none; background: transparent;
-      border-radius: 8px;
-      font-size: 13px; font-weight: 500; cursor: pointer;
-      color: var(--sub); transition: all .2s;
+      flex: 1; padding: 6px 2px;
+      border: none; background: transparent; border-radius: 8px;
+      font-size: 12px; font-weight: 500; cursor: pointer;
+      color: var(--sub); transition: all .2s; white-space: nowrap;
     }
     .view-btn.active { background: var(--card); color: var(--blue); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+    .view-btn.active.notes-active { color: var(--yellow); }
 
-    /* ===== CALENDAR HEADER ===== */
+    /* ===== CALENDAR NAV ===== */
     .cal-nav {
       display: flex; align-items: center; justify-content: space-between;
       padding: 4px 16px;
@@ -137,43 +124,29 @@
     }
 
     /* ===== WEEK VIEW ===== */
-    .week-grid {
-      padding: 8px 16px;
-      display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px;
-    }
+    .week-grid { padding: 8px 16px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
     .day-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
     .day-label { font-size: 11px; color: var(--sub); font-weight: 500; }
     .day-num {
       width: 32px; height: 32px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      font-size: 15px; font-weight: 500; cursor: pointer;
-      transition: background .15s;
+      font-size: 15px; font-weight: 500; cursor: pointer; transition: background .15s;
     }
-    .day-num:hover { background: var(--bg); }
     .day-num.today { background: var(--blue); color: #fff; font-weight: 700; }
     .day-num.selected { background: #EEF4FF; color: var(--blue); font-weight: 700; }
     .day-dot-row { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; min-height: 6px; }
     .day-dot { width: 6px; height: 6px; border-radius: 50%; }
 
     /* ===== MONTH VIEW ===== */
-    .month-grid {
-      padding: 0 16px;
-    }
-    .month-dow-row {
-      display: grid; grid-template-columns: repeat(7, 1fr);
-      margin-bottom: 4px;
-    }
+    .month-grid { padding: 0 16px; }
+    .month-dow-row { display: grid; grid-template-columns: repeat(7, 1fr); margin-bottom: 4px; }
     .month-dow { font-size: 11px; color: var(--sub); text-align: center; font-weight: 500; padding: 2px 0; }
-    .month-days-grid {
-      display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
-    }
+    .month-days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
     .month-cell {
       aspect-ratio: 1; display: flex; flex-direction: column;
       align-items: center; justify-content: flex-start;
-      padding: 2px; cursor: pointer; border-radius: 8px;
-      transition: background .15s;
+      padding: 2px; cursor: pointer; border-radius: 8px; transition: background .15s;
     }
-    .month-cell:hover { background: var(--bg); }
     .month-cell .mn { font-size: 13px; font-weight: 500; padding: 2px 0; }
     .month-cell.today .mn { background: var(--blue); color: #fff; border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
     .month-cell.selected .mn { background: #EEF4FF; color: var(--blue); border-radius: 50%; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
@@ -183,29 +156,30 @@
 
     /* ===== DAY VIEW ===== */
     .day-view { padding: 8px 16px; }
-    .day-view-header { font-size: 15px; font-weight: 600; color: var(--sub); margin-bottom: 10px; text-align: center; }
     .hour-row { display: flex; gap: 8px; min-height: 48px; border-top: 1px solid var(--border); }
     .hour-label { font-size: 11px; color: var(--sub); width: 36px; padding-top: 6px; text-align: center; flex-shrink: 0; }
     .hour-events { flex: 1; padding: 4px 0; display: flex; flex-direction: column; gap: 2px; }
+    .mini-event {
+      font-size: 11px; padding: 2px 6px; border-radius: 6px;
+      color: #fff; cursor: pointer; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+    }
 
-    /* ===== TASK LIST ===== */
+    /* ===== SECTION HEADER ===== */
     .section-header {
       padding: 10px 16px 6px;
       font-size: 13px; font-weight: 600; color: var(--sub);
       text-transform: uppercase; letter-spacing: 0.5px;
     }
-    .task-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
 
-    /* ===== TASK CARD ===== */
+    /* ===== TASK CARDS ===== */
+    .task-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
     .task-card {
-      background: var(--card);
-      border-radius: 14px;
-      border-right: 4px solid var(--gray);
-      padding: 12px 14px;
+      background: var(--card); border-radius: 14px;
+      border-right: 4px solid var(--gray); padding: 12px 14px;
       box-shadow: 0 1px 3px rgba(0,0,0,.06);
       display: flex; align-items: flex-start; gap: 10px;
-      cursor: pointer; transition: transform .15s, box-shadow .15s;
-      position: relative;
+      cursor: pointer; transition: transform .15s;
     }
     .task-card:active { transform: scale(0.98); }
     .task-card.done { opacity: .5; }
@@ -220,30 +194,47 @@
     .task-body { flex: 1; min-width: 0; }
     .task-title { font-size: 15px; font-weight: 500; word-break: break-word; }
     .task-meta { display: flex; gap: 8px; align-items: center; margin-top: 4px; flex-wrap: wrap; }
-    .task-tag {
-      font-size: 11px; font-weight: 600; padding: 2px 8px;
-      border-radius: 10px; color: #fff;
-    }
+    .task-tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; color: #fff; }
     .task-time { font-size: 12px; color: var(--sub); }
     .task-link { font-size: 12px; color: var(--blue); text-decoration: none; }
-    .task-link:hover { text-decoration: underline; }
-    .task-actions {
-      display: flex; gap: 4px; align-items: center;
-    }
+    .task-actions { display: flex; gap: 4px; align-items: center; }
     .action-btn {
       width: 30px; height: 30px; border-radius: 50%; border: none;
       background: var(--bg); cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      font-size: 15px; color: var(--sub);
-      transition: background .15s;
+      font-size: 15px; color: var(--sub); transition: background .15s;
     }
-    .action-btn:hover { background: var(--border); }
 
-    /* ===== MODAL ===== */
+    /* ===== NOTE CARDS ===== */
+    .note-list { padding: 0 16px; display: flex; flex-direction: column; gap: 10px; }
+    .note-card {
+      background: var(--note-bg); border-radius: 14px;
+      border-right: 4px solid var(--yellow); padding: 12px 14px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.07);
+      display: flex; align-items: flex-start; gap: 10px;
+      cursor: pointer; transition: transform .15s;
+    }
+    .note-card:active { transform: scale(0.98); }
+    .note-icon { font-size: 22px; flex-shrink: 0; margin-top: 1px; }
+    .note-body { flex: 1; min-width: 0; }
+    .note-card-title {
+      font-size: 15px; font-weight: 600; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .note-card-preview {
+      font-size: 13px; color: var(--sub); margin-top: 3px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .note-card-meta { font-size: 11px; color: #c7c7cc; margin-top: 5px; }
+    .note-sketch-thumb {
+      width: 54px; height: 54px; border-radius: 10px;
+      object-fit: cover; border: 1px solid var(--border); flex-shrink: 0;
+    }
+
+    /* ===== SHARED MODAL ===== */
     .modal-backdrop {
       position: fixed; inset: 0; background: rgba(0,0,0,.45);
-      z-index: 500; display: flex; align-items: flex-end;
-      justify-content: center;
+      z-index: 500; display: flex; align-items: flex-end; justify-content: center;
       animation: fadeIn .2s;
     }
     @keyframes fadeIn { from{opacity:0} to{opacity:1} }
@@ -267,38 +258,99 @@
       background: var(--bg); color: var(--text);
       outline: none; transition: border-color .2s;
     }
-    .field input:focus, .field textarea:focus, .field select:focus { border-color: var(--blue); }
+    .field input:focus, .field textarea:focus { border-color: var(--blue); }
     .field textarea { min-height: 80px; resize: vertical; }
-    .color-grid {
-      display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
-    }
-    .color-opt {
-      display: flex; flex-direction: column; align-items: center; gap: 4px;
-      cursor: pointer;
-    }
-    .color-swatch {
-      width: 44px; height: 44px; border-radius: 50%;
-      border: 3px solid transparent; transition: all .15s;
-    }
+    .color-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+    .color-opt { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
+    .color-swatch { width: 44px; height: 44px; border-radius: 50%; border: 3px solid transparent; transition: all .15s; }
     .color-opt.selected .color-swatch { border-color: var(--text); transform: scale(1.1); }
     .color-opt span { font-size: 10px; color: var(--sub); text-align: center; }
     .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
     .btn-primary {
       flex: 1; padding: 14px; border: none; border-radius: 14px;
       background: var(--blue); color: #fff;
-      font-size: 16px; font-weight: 600; cursor: pointer;
-      transition: opacity .15s;
+      font-size: 16px; font-weight: 600; cursor: pointer; transition: opacity .15s;
     }
     .btn-primary:active { opacity: .8; }
     .btn-secondary {
       padding: 14px 20px; border: 1.5px solid var(--border); border-radius: 14px;
       background: transparent; color: var(--sub);
-      font-size: 16px; font-weight: 500; cursor: pointer;
+      font-size: 16px; font-weight: 500; cursor: pointer; font-family: inherit;
     }
     .btn-danger {
       padding: 14px 20px; border: none; border-radius: 14px;
       background: #FFF0F0; color: var(--red);
-      font-size: 16px; font-weight: 500; cursor: pointer;
+      font-size: 16px; font-weight: 500; cursor: pointer; font-family: inherit;
+    }
+
+    /* ===== NOTE MODAL ===== */
+    .note-modal { max-height: 95dvh; }
+    .note-modal-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .note-modal-top h2 { margin-bottom: 0; }
+    .note-tab-bar {
+      display: flex; background: var(--border);
+      border-radius: 10px; padding: 2px; margin-bottom: 14px;
+    }
+    .note-tab {
+      flex: 1; padding: 9px 4px;
+      border: none; background: transparent; border-radius: 8px;
+      font-size: 13px; font-weight: 500; cursor: pointer;
+      color: var(--sub); transition: all .2s; font-family: inherit;
+    }
+    .note-tab.active { background: var(--card); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+    .note-tab-content { min-height: 260px; }
+    .note-text-header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+    }
+    .note-mic-label { font-size: 12px; color: var(--sub); }
+    .note-textarea {
+      width: 100%; padding: 12px 14px;
+      border: 1.5px solid var(--border); border-radius: 12px;
+      font-size: 16px; font-family: inherit; line-height: 1.65;
+      direction: rtl; text-align: right;
+      background: var(--bg); color: var(--text);
+      outline: none; resize: none; min-height: 230px;
+      transition: border-color .2s;
+    }
+    .note-textarea:focus { border-color: var(--blue); }
+
+    /* ===== SKETCH ===== */
+    .sketch-toolbar {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 10px; flex-wrap: wrap;
+    }
+    .sketch-tool {
+      min-width: 36px; height: 36px; padding: 0 8px; border-radius: 10px;
+      border: 1.5px solid var(--border); background: var(--bg);
+      cursor: pointer; font-size: 16px; font-family: inherit;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .15s;
+    }
+    .sketch-tool.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .sketch-colors { display: flex; gap: 7px; align-items: center; }
+    .sketch-color {
+      width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+      border: 2px solid transparent; transition: all .15s; flex-shrink: 0;
+    }
+    .sketch-color.active { border-color: var(--text); transform: scale(1.2); }
+    .sketch-sizes { display: flex; gap: 4px; }
+    .sketch-size {
+      width: 30px; height: 30px; border-radius: 8px;
+      border: 1.5px solid var(--border); background: var(--bg);
+      cursor: pointer; font-weight: 700; color: var(--sub);
+      font-family: inherit; transition: all .15s;
+    }
+    .sketch-size.active { background: #EEF4FF; border-color: var(--blue); color: var(--blue); }
+    .sketch-clear {
+      margin-right: auto; padding: 0 10px; height: 34px;
+      border-radius: 10px; border: 1.5px solid var(--border);
+      background: var(--bg); color: var(--sub);
+      cursor: pointer; font-size: 13px; font-family: inherit;
+    }
+    .sketch-canvas {
+      width: 100%; border-radius: 12px;
+      border: 1.5px solid var(--border); background: #fff;
+      cursor: crosshair; touch-action: none; display: block;
     }
 
     /* ===== EMPTY STATE ===== */
@@ -312,20 +364,12 @@
       transform: translateX(-50%);
       background: rgba(30,30,30,.9); color: #fff;
       padding: 10px 20px; border-radius: 20px;
-      font-size: 14px; z-index: 999;
+      font-size: 14px; z-index: 999; pointer-events: none;
       animation: toastIn .3s, toastOut .3s 1.7s forwards;
     }
     @keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(10px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
     @keyframes toastOut { to{opacity:0} }
 
-    /* ===== CATEGORY MINI EVENT ===== */
-    .mini-event {
-      font-size: 11px; padding: 2px 6px; border-radius: 6px;
-      color: #fff; cursor: pointer; overflow: hidden;
-      text-overflow: ellipsis; white-space: nowrap;
-    }
-
-    /* ===== SCROLLBAR HIDE ===== */
     ::-webkit-scrollbar { display: none; }
     * { scrollbar-width: none; }
   </style>
@@ -336,72 +380,79 @@
     <h1>MyTasks ✓</h1>
     <button class="header-btn" id="notif-btn" title="הפעל התראות">🔔</button>
   </header>
-
   <main id="main-content"></main>
-
-  <!-- Input Bar -->
   <div class="input-bar">
     <div class="input-row">
       <button class="btn-icon btn-mic" id="mic-btn" title="הקלטת קול">🎤</button>
-      <input
-        class="task-input" id="task-input"
-        type="text" placeholder="משימה חדשה..."
-        autocomplete="off" autocorrect="off" spellcheck="true"
-        lang="he"
-      >
-      <button class="btn-icon btn-add" id="add-btn" title="הוסף משימה">+</button>
+      <input class="task-input" id="task-input" type="text"
+        placeholder="משימה חדשה..."
+        autocomplete="off" autocorrect="off" spellcheck="true" lang="he">
+      <button class="btn-icon btn-add" id="add-btn" title="הוסף">+</button>
     </div>
   </div>
 </div>
 
-<!-- Modal Template (injected dynamically) -->
-
 <script>
-// ===== STATE =====
+// ===== CONSTANTS =====
 const CATS = [
-  { id: 'work',     label: 'עבודה',    color: '#4A90D9', emoji: '💼' },
-  { id: 'sports',   label: 'ספורט',    color: '#F5A623', emoji: '⚽' },
-  { id: 'food',     label: 'אוכל',     color: '#5CB85C', emoji: '🍎' },
-  { id: 'event',    label: 'אירוע',    color: '#E87A2B', emoji: '🎉' },
-  { id: 'personal', label: 'אישי',     color: '#D9534F', emoji: '❤️' },
+  { id: 'work',     label: 'עבודה',  color: '#4A90D9', emoji: '💼' },
+  { id: 'sports',   label: 'ספורט',  color: '#F5A623', emoji: '⚽' },
+  { id: 'food',     label: 'אוכל',   color: '#5CB85C', emoji: '🍎' },
+  { id: 'event',    label: 'אירוע',  color: '#E87A2B', emoji: '🎉' },
+  { id: 'personal', label: 'אישי',   color: '#D9534F', emoji: '❤️' },
 ];
 const CAT_MAP = Object.fromEntries(CATS.map(c => [c.id, c]));
-const DOW = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳']; // Sun–Sat RTL
+const DOW = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
 const MONTHS_HE = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
+// ===== STATE =====
 let tasks = JSON.parse(localStorage.getItem('mytasks_tasks') || '[]');
-let view = localStorage.getItem('mytasks_view') || 'week';
+let notes = JSON.parse(localStorage.getItem('mytasks_notes') || '[]');
+let view  = localStorage.getItem('mytasks_view') || 'week';
 let selectedDate = new Date();
-let calOffset = 0; // week/month offset from today
+let calOffset = 0;
 let editingTaskId = null;
-let recognition = null;
+let editingNoteId = null;
 let swReg = null;
 
-const save = () => localStorage.setItem('mytasks_tasks', JSON.stringify(tasks));
+// sketch state
+let sketchCtx = null;
+let sketchInitialized = false;
+let isDrawing = false;
+let lastPos = null;
+let sketchPenColor = '#1C1C1E';
+let sketchPenSize  = 3;
+let sketchMode     = 'pen';
+
+// voice state
+let recognition = null;
+let recognitionTarget = 'task'; // 'task' | 'note'
+
+const save      = () => localStorage.setItem('mytasks_tasks', JSON.stringify(tasks));
+const saveNotes = () => localStorage.setItem('mytasks_notes', JSON.stringify(notes));
 
 // ===== UTILS =====
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
-const today = () => { const d = new Date(); d.setHours(0,0,0,0); return d; }
-const sameDay = (a, b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
-const fmtDate = d => d ? new Date(d).toLocaleDateString('he-IL', {day:'2-digit',month:'2-digit',year:'numeric'}) : '';
-const fmtTime = d => d ? new Date(d).toLocaleTimeString('he-IL', {hour:'2-digit',minute:'2-digit'}) : '';
+const today   = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
+const sameDay = (a, b) =>
+  a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+const fmtDate = d => d ? new Date(d).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'numeric'}) : '';
+const fmtTime = d => d ? new Date(d).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
 const fmtDateTime = d => d ? `${fmtDate(d)} ${fmtTime(d)}` : '';
-const getWeekStart = (offset=0) => {
-  const d = new Date();
-  d.setHours(0,0,0,0);
-  d.setDate(d.getDate() - d.getDay() + offset * 7);
-  return d;
+const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const getWeekStart = (off=0) => {
+  const d = new Date(); d.setHours(0,0,0,0);
+  d.setDate(d.getDate() - d.getDay() + off * 7); return d;
 };
-const getMonthStart = (offset=0) => {
-  const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth() + offset, 1);
+const getMonthStart = (off=0) => {
+  const d = new Date(); return new Date(d.getFullYear(), d.getMonth() + off, 1);
 };
-
-// ===== TASKS ON DATE =====
-const tasksOnDate = date => tasks.filter(t => {
-  if (!t.dueDate) return false;
-  return sameDay(new Date(t.dueDate), date);
-});
+const tasksOnDate = date => tasks.filter(t => t.dueDate && sameDay(new Date(t.dueDate), date));
+const noteTitle   = n => (n.content||'').split('\n')[0].trim() || 'פתק ללא כותרת';
+const notePreview = n => {
+  const lines = (n.content||'').split('\n').filter(l => l.trim());
+  return lines.length > 1 ? lines.slice(1).join(' ') : '';
+};
 
 // ===== TOAST =====
 const showToast = msg => {
@@ -414,11 +465,9 @@ const showToast = msg => {
 // ===== NOTIFICATIONS =====
 const requestNotifPermission = async () => {
   if (!('Notification' in window)) { showToast('התראות לא נתמכות'); return; }
-  const perm = await Notification.requestPermission();
-  if (perm === 'granted') showToast('התראות הופעלו ✓');
-  else showToast('התראות נדחו');
+  const p = await Notification.requestPermission();
+  showToast(p === 'granted' ? 'התראות הופעלו ✓' : 'התראות נדחו');
 };
-
 const scheduleNotif = task => {
   if (!task.dueDate || !swReg) return;
   const ts = new Date(task.dueDate).getTime();
@@ -437,9 +486,9 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(r => { swReg = r; });
 }
 
-// ===== VOICE INPUT =====
+// ===== VOICE (main bar) =====
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-const micBtn = document.getElementById('mic-btn');
+const micBtn   = document.getElementById('mic-btn');
 const taskInput = document.getElementById('task-input');
 
 if (SpeechRec) {
@@ -447,18 +496,37 @@ if (SpeechRec) {
   recognition.lang = 'he-IL';
   recognition.continuous = false;
   recognition.interimResults = true;
+
   recognition.onresult = e => {
     const t = Array.from(e.results).map(r => r[0].transcript).join('');
-    taskInput.value = t;
+    if (recognitionTarget === 'note') {
+      const ta = document.getElementById('note-textarea');
+      if (ta) ta.value = t;
+    } else {
+      taskInput.value = t;
+    }
   };
-  recognition.onend = () => micBtn.classList.remove('recording');
-  recognition.onerror = () => { micBtn.classList.remove('recording'); showToast('שגיאה בזיהוי קול'); };
+  recognition.onend = () => {
+    micBtn.classList.remove('recording');
+    const nm = document.getElementById('note-mic-btn');
+    if (nm) nm.classList.remove('recording');
+    recognitionTarget = 'task';
+  };
+  recognition.onerror = () => {
+    micBtn.classList.remove('recording');
+    const nm = document.getElementById('note-mic-btn');
+    if (nm) nm.classList.remove('recording');
+    recognitionTarget = 'task';
+    showToast('שגיאה בזיהוי קול');
+  };
+
   micBtn.addEventListener('click', () => {
     if (micBtn.classList.contains('recording')) {
       recognition.stop();
     } else {
+      recognitionTarget = 'task';
       micBtn.classList.add('recording');
-      recognition.start();
+      try { recognition.start(); } catch(e) {}
     }
   });
 } else {
@@ -466,72 +534,74 @@ if (SpeechRec) {
   micBtn.title = 'זיהוי קול לא נתמך';
 }
 
-// ===== ADD TASK =====
+// Note modal mic
+const toggleNoteMic = () => {
+  if (!recognition) { showToast('זיהוי קול לא נתמך'); return; }
+  const btn = document.getElementById('note-mic-btn');
+  if (btn.classList.contains('recording')) {
+    recognition.stop();
+  } else {
+    recognitionTarget = 'note';
+    btn.classList.add('recording');
+    try { recognition.start(); } catch(e) {}
+  }
+};
+
+// ===== INPUT BAR ACTIONS =====
+document.getElementById('add-btn').addEventListener('click', () => {
+  view === 'notes' ? addNote() : addTask();
+});
+taskInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { view === 'notes' ? addNote() : addTask(); }
+});
+document.getElementById('notif-btn').addEventListener('click', requestNotifPermission);
+
+const updateInputBar = () => {
+  taskInput.placeholder = view === 'notes' ? 'פתק חדש...' : 'משימה חדשה...';
+  const addBtn = document.getElementById('add-btn');
+  addBtn.classList.toggle('note-mode', view === 'notes');
+  addBtn.title = view === 'notes' ? 'פתק חדש' : 'משימה חדשה';
+};
+
+// ===== TASKS =====
 const addTask = () => {
   const title = taskInput.value.trim();
   if (!title) { taskInput.focus(); return; }
-  const task = {
-    id: uid(),
-    title,
-    dueDate: null,
-    category: null,
-    color: null,
-    link: '',
-    done: false,
-    createdAt: new Date().toISOString(),
-  };
+  const task = { id: uid(), title, dueDate: null, category: null, color: null, link: '', done: false, createdAt: new Date().toISOString() };
   tasks.unshift(task);
-  save();
-  taskInput.value = '';
-  renderAll();
-  showToast('משימה נוספה ✓');
+  save(); taskInput.value = '';
+  renderAll(); showToast('משימה נוספה ✓');
   openEditModal(task.id);
 };
-
-document.getElementById('add-btn').addEventListener('click', addTask);
-taskInput.addEventListener('keydown', e => { if (e.key === 'Enter') addTask(); });
-document.getElementById('notif-btn').addEventListener('click', requestNotifPermission);
-
-// ===== DELETE TASK =====
-const deleteTask = id => {
-  tasks = tasks.filter(t => t.id !== id);
-  save(); renderAll(); showToast('משימה נמחקה');
-};
-
-// ===== TOGGLE DONE =====
+const deleteTask = id => { tasks = tasks.filter(t => t.id !== id); save(); renderAll(); showToast('משימה נמחקה'); };
 const toggleDone = (id, e) => {
   e.stopPropagation();
   const t = tasks.find(t => t.id === id);
   if (t) { t.done = !t.done; save(); renderAll(); }
 };
 
-// ===== MODAL =====
+// Task modal
 const openEditModal = id => {
   editingTaskId = id;
   const task = tasks.find(t => t.id === id) || {};
   const dueDateLocal = task.dueDate ? new Date(task.dueDate).toISOString().slice(0,16) : '';
-
-  const html = `
+  document.body.insertAdjacentHTML('beforeend', `
     <div class="modal-backdrop" id="modal-bd">
       <div class="modal" id="modal">
         <div class="modal-handle"></div>
-        <h2>${id && tasks.find(t=>t.id===id) ? 'עריכת משימה' : 'משימה חדשה'}</h2>
-
+        <h2>${task.id ? 'עריכת משימה' : 'משימה חדשה'}</h2>
         <div class="field">
           <label>כותרת</label>
           <input id="m-title" type="text" value="${escHtml(task.title||'')}" placeholder="כותרת המשימה">
         </div>
-
         <div class="field">
           <label>תאריך ושעה</label>
           <input id="m-date" type="datetime-local" value="${dueDateLocal}">
         </div>
-
         <div class="field">
           <label>קישור</label>
           <input id="m-link" type="url" value="${escHtml(task.link||'')}" placeholder="https://...">
         </div>
-
         <div class="field">
           <label>קטגוריה וצבע</label>
           <div class="color-grid">
@@ -539,82 +609,270 @@ const openEditModal = id => {
               <div class="color-opt ${task.category===c.id?'selected':''}" data-cat="${c.id}" onclick="selectCat('${c.id}')">
                 <div class="color-swatch" style="background:${c.color}"></div>
                 <span>${c.emoji} ${c.label}</span>
-              </div>
-            `).join('')}
+              </div>`).join('')}
           </div>
         </div>
-
         <div class="modal-actions">
           ${task.id ? `<button class="btn-danger" onclick="deleteTaskFromModal()">מחק</button>` : ''}
           <button class="btn-secondary" onclick="closeModal()">ביטול</button>
           <button class="btn-primary" onclick="saveTask()">שמור</button>
         </div>
       </div>
-    </div>`;
-
-  document.body.insertAdjacentHTML('beforeend', html);
+    </div>`);
   document.getElementById('modal-bd').addEventListener('click', e => {
-    if (e.target === document.getElementById('modal-bd')) closeModal();
+    if (e.target.id === 'modal-bd') closeModal();
   });
   document.getElementById('m-title').focus();
 };
-
-const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-
+const closeModal = () => { document.getElementById('modal-bd')?.remove(); editingTaskId = null; };
 const selectCat = id => {
-  document.querySelectorAll('.color-opt').forEach(el => {
-    el.classList.toggle('selected', el.dataset.cat === id);
-  });
+  document.querySelectorAll('.color-opt').forEach(el => el.classList.toggle('selected', el.dataset.cat === id));
 };
-
-const closeModal = () => {
-  const bd = document.getElementById('modal-bd');
-  if (bd) bd.remove();
-  editingTaskId = null;
-};
-
 const saveTask = () => {
   const title = document.getElementById('m-title').value.trim();
   if (!title) { showToast('יש להזין כותרת'); return; }
   const dateVal = document.getElementById('m-date').value;
-  const link = document.getElementById('m-link').value.trim();
-  const selectedCat = document.querySelector('.color-opt.selected');
-  const catId = selectedCat ? selectedCat.dataset.cat : null;
-
+  const link    = document.getElementById('m-link').value.trim();
+  const catEl   = document.querySelector('.color-opt.selected');
+  const catId   = catEl ? catEl.dataset.cat : null;
   let task = tasks.find(t => t.id === editingTaskId);
-  if (!task) {
-    task = { id: uid(), createdAt: new Date().toISOString(), done: false };
-    tasks.unshift(task);
-  }
-  task.title = title;
-  task.dueDate = dateVal ? new Date(dateVal).toISOString() : null;
-  task.link = link;
+  if (!task) { task = { id: uid(), createdAt: new Date().toISOString(), done: false }; tasks.unshift(task); }
+  task.title    = title;
+  task.dueDate  = dateVal ? new Date(dateVal).toISOString() : null;
+  task.link     = link;
   task.category = catId;
-  task.color = catId ? CAT_MAP[catId].color : null;
-
+  task.color    = catId ? CAT_MAP[catId].color : null;
   save();
   if (task.dueDate) scheduleNotif(task);
-  closeModal();
+  closeModal(); renderAll(); showToast('נשמר ✓');
+};
+const deleteTaskFromModal = () => { if (editingTaskId) { deleteTask(editingTaskId); closeModal(); } };
+
+// ===== NOTES =====
+const addNote = () => {
+  const text = taskInput.value.trim();
+  const note = { id: uid(), content: text, sketchData: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  notes.unshift(note);
+  saveNotes(); taskInput.value = '';
   renderAll();
-  showToast('נשמר ✓');
+  openNoteModal(note.id);
+};
+const deleteNote = id => { notes = notes.filter(n => n.id !== id); saveNotes(); renderAll(); showToast('פתק נמחק'); };
+
+const openNoteModal = id => {
+  editingNoteId     = id;
+  sketchInitialized = false;
+  sketchCtx         = null;
+  sketchMode        = 'pen';
+  sketchPenColor    = '#1C1C1E';
+  sketchPenSize     = 3;
+
+  const note = notes.find(n => n.id === id) || {};
+
+  document.body.insertAdjacentHTML('beforeend', `
+    <div class="modal-backdrop" id="note-modal-bd">
+      <div class="modal note-modal" id="note-modal">
+        <div class="modal-handle"></div>
+        <div class="note-modal-top">
+          <h2>${note.id ? 'עריכת פתק' : 'פתק חדש'}</h2>
+        </div>
+
+        <div class="note-tab-bar">
+          <button class="note-tab active" data-tab="text"   onclick="switchNoteTab('text')">✏️ כתיבה / קול</button>
+          <button class="note-tab"        data-tab="sketch" onclick="switchNoteTab('sketch')">🎨 סקיצה</button>
+        </div>
+
+        <!-- TEXT / VOICE TAB -->
+        <div id="note-tab-text" class="note-tab-content">
+          <div class="note-text-header">
+            <button class="btn-icon btn-mic" id="note-mic-btn" onclick="toggleNoteMic()" title="דקלום קולי">🎤</button>
+            <span class="note-mic-label">לחץ לדקלום קולי בעברית</span>
+          </div>
+          <textarea id="note-textarea" class="note-textarea" placeholder="כתוב את הפתק כאן...">${escHtml(note.content||'')}</textarea>
+        </div>
+
+        <!-- SKETCH TAB -->
+        <div id="note-tab-sketch" class="note-tab-content" style="display:none">
+          <div class="sketch-toolbar">
+            <button class="sketch-tool ${sketchMode==='pen'?'active':''}"    id="sk-pen"    onclick="setSketchMode('pen')">✏️</button>
+            <button class="sketch-tool ${sketchMode==='eraser'?'active':''}" id="sk-eraser" onclick="setSketchMode('eraser')">🧹</button>
+            <div class="sketch-colors">
+              ${['#1C1C1E','#4A90D9','#D9534F','#5CB85C','#F5A623'].map(c =>
+                `<div class="sketch-color${sketchPenColor===c?' active':''}" style="background:${c}" onclick="setSketchColor('${c}')"></div>`
+              ).join('')}
+            </div>
+            <div class="sketch-sizes">
+              <button class="sketch-size${sketchPenSize===2?' active':''}" onclick="setSketchSize(2)">S</button>
+              <button class="sketch-size${sketchPenSize===4?' active':''}" onclick="setSketchSize(4)">M</button>
+              <button class="sketch-size${sketchPenSize===8?' active':''}" onclick="setSketchSize(8)">L</button>
+            </div>
+            <button class="sketch-clear" onclick="clearSketch()">🗑️ נקה</button>
+          </div>
+          <canvas id="sketch-canvas" class="sketch-canvas"></canvas>
+        </div>
+
+        <div class="modal-actions">
+          ${note.id ? `<button class="btn-danger" onclick="deleteNoteFromModal()">מחק</button>` : ''}
+          <button class="btn-secondary" onclick="closeNoteModal()">ביטול</button>
+          <button class="btn-primary" onclick="saveNote()">שמור</button>
+        </div>
+      </div>
+    </div>`);
+
+  document.getElementById('note-modal-bd').addEventListener('click', e => {
+    if (e.target.id === 'note-modal-bd') closeNoteModal();
+  });
+  document.getElementById('note-textarea').focus();
 };
 
-const deleteTaskFromModal = () => {
-  if (editingTaskId) { deleteTask(editingTaskId); closeModal(); }
+const closeNoteModal = () => {
+  if (recognition && recognitionTarget === 'note') { try { recognition.stop(); } catch(e){} }
+  document.getElementById('note-modal-bd')?.remove();
+  editingNoteId = null; sketchCtx = null; sketchInitialized = false;
+};
+
+const saveNote = () => {
+  const content = document.getElementById('note-textarea')?.value || '';
+  let note = notes.find(n => n.id === editingNoteId);
+  if (!note) { note = { id: uid(), createdAt: new Date().toISOString() }; notes.unshift(note); }
+  note.content   = content;
+  note.updatedAt = new Date().toISOString();
+  if (sketchInitialized && sketchCtx) {
+    const canvas = document.getElementById('sketch-canvas');
+    note.sketchData = canvas ? canvas.toDataURL('image/png') : note.sketchData;
+  }
+  saveNotes(); closeNoteModal(); renderAll(); showToast('פתק נשמר ✓');
+};
+
+const deleteNoteFromModal = () => { if (editingNoteId) { deleteNote(editingNoteId); closeNoteModal(); } };
+
+// Note tabs
+const switchNoteTab = tab => {
+  document.querySelectorAll('.note-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('note-tab-text').style.display   = tab === 'text'   ? '' : 'none';
+  document.getElementById('note-tab-sketch').style.display = tab === 'sketch' ? '' : 'none';
+  if (tab === 'sketch' && !sketchInitialized) {
+    const note = notes.find(n => n.id === editingNoteId) || {};
+    initSketchCanvas(note.sketchData);
+    sketchInitialized = true;
+  }
+};
+
+// ===== SKETCH ENGINE =====
+const initSketchCanvas = existingData => {
+  const canvas = document.getElementById('sketch-canvas');
+  if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.parentElement.clientWidth;
+  const h = 260;
+  canvas.width  = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width  = w + 'px';
+  canvas.style.height = h + 'px';
+  sketchCtx = canvas.getContext('2d');
+  sketchCtx.scale(dpr, dpr);
+  sketchCtx.lineCap  = 'round';
+  sketchCtx.lineJoin = 'round';
+  sketchCtx.fillStyle = '#ffffff';
+  sketchCtx.fillRect(0, 0, w, h);
+
+  if (existingData) {
+    const img = new Image();
+    img.onload = () => sketchCtx.drawImage(img, 0, 0, w, h);
+    img.src = existingData;
+  }
+
+  canvas.addEventListener('touchstart',  onSketchStart, { passive: false });
+  canvas.addEventListener('touchmove',   onSketchMove,  { passive: false });
+  canvas.addEventListener('touchend',    onSketchEnd);
+  canvas.addEventListener('mousedown',   onSketchMouseDown);
+  canvas.addEventListener('mousemove',   onSketchMouseMove);
+  canvas.addEventListener('mouseup',     () => { isDrawing = false; lastPos = null; });
+  canvas.addEventListener('mouseleave',  () => { isDrawing = false; lastPos = null; });
+};
+
+const canvasPos = (canvas, clientX, clientY) => {
+  const r = canvas.getBoundingClientRect();
+  return { x: clientX - r.left, y: clientY - r.top };
+};
+const drawLine = (from, to) => {
+  if (!sketchCtx) return;
+  sketchCtx.beginPath();
+  sketchCtx.moveTo(from.x, from.y);
+  sketchCtx.lineTo(to.x, to.y);
+  sketchCtx.strokeStyle = sketchMode === 'eraser' ? '#ffffff' : sketchPenColor;
+  sketchCtx.lineWidth   = sketchMode === 'eraser' ? sketchPenSize * 4 : sketchPenSize;
+  sketchCtx.stroke();
+};
+
+const onSketchStart = e => {
+  e.preventDefault();
+  isDrawing = true;
+  const canvas = e.target;
+  const t = e.touches[0];
+  lastPos = canvasPos(canvas, t.clientX, t.clientY);
+  drawLine(lastPos, lastPos);
+};
+const onSketchMove = e => {
+  e.preventDefault();
+  if (!isDrawing) return;
+  const canvas = e.target;
+  const t = e.touches[0];
+  const pos = canvasPos(canvas, t.clientX, t.clientY);
+  drawLine(lastPos, pos); lastPos = pos;
+};
+const onSketchEnd = () => { isDrawing = false; lastPos = null; };
+
+const onSketchMouseDown = e => {
+  isDrawing = true;
+  lastPos   = canvasPos(e.target, e.clientX, e.clientY);
+  drawLine(lastPos, lastPos);
+};
+const onSketchMouseMove = e => {
+  if (!isDrawing) return;
+  const pos = canvasPos(e.target, e.clientX, e.clientY);
+  drawLine(lastPos, pos); lastPos = pos;
+};
+
+const setSketchMode  = m => {
+  sketchMode = m;
+  document.getElementById('sk-pen')?.classList.toggle('active', m==='pen');
+  document.getElementById('sk-eraser')?.classList.toggle('active', m==='eraser');
+};
+const setSketchColor = c => {
+  sketchPenColor = c; sketchMode = 'pen';
+  document.querySelectorAll('.sketch-color').forEach(el =>
+    el.classList.toggle('active', el.style.background === c || el.style.backgroundColor === c)
+  );
+  setSketchMode('pen');
+};
+const setSketchSize  = s => {
+  sketchPenSize = s;
+  document.querySelectorAll('.sketch-size').forEach((el, i) =>
+    el.classList.toggle('active', [2,4,8][i] === s)
+  );
+};
+const clearSketch = () => {
+  if (!sketchCtx) return;
+  const canvas = document.getElementById('sketch-canvas');
+  sketchCtx.fillStyle = '#ffffff';
+  sketchCtx.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 };
 
 // ===== RENDER =====
 const renderAll = () => {
-  const main = document.getElementById('main-content');
-  main.innerHTML = renderViewToggle() + renderCalendar() + renderTaskSection();
+  updateInputBar();
+  document.getElementById('main-content').innerHTML =
+    renderViewToggle() + (view === 'notes' ? renderNotesView() : renderCalendar() + renderTaskSection());
 };
 
 const renderViewToggle = () => `
   <div class="view-toggle">
-    <button class="view-btn ${view==='list'?'active':''}" onclick="setView('list')">רשימה</button>
-    <button class="view-btn ${view==='day'?'active':''}" onclick="setView('day')">יום</button>
-    <button class="view-btn ${view==='week'?'active':''}" onclick="setView('week')">שבוע</button>
-    <button class="view-btn ${view==='month'?'active':''}" onclick="setView('month')">חודש</button>
+    <button class="view-btn ${view==='list'  ?'active':''}"  onclick="setView('list')">רשימה</button>
+    <button class="view-btn ${view==='notes' ?'active notes-active':''}" onclick="setView('notes')">📝 פתקים</button>
+    <button class="view-btn ${view==='day'   ?'active':''}"  onclick="setView('day')">יום</button>
+    <button class="view-btn ${view==='week'  ?'active':''}"  onclick="setView('week')">שבוע</button>
+    <button class="view-btn ${view==='month' ?'active':''}"  onclick="setView('month')">חודש</button>
   </div>`;
 
 const setView = v => {
@@ -625,10 +883,10 @@ const setView = v => {
 
 // ===== CALENDAR =====
 const renderCalendar = () => {
-  if (view === 'list') return '';
-  if (view === 'week') return renderWeek();
+  if (view === 'list')  return '';
+  if (view === 'week')  return renderWeek();
   if (view === 'month') return renderMonth();
-  if (view === 'day') return renderDayNav();
+  if (view === 'day')   return renderDayNav();
   return '';
 };
 
@@ -636,132 +894,100 @@ const navLabel = () => {
   if (view === 'week') {
     const ws = getWeekStart(calOffset);
     const we = new Date(ws); we.setDate(we.getDate() + 6);
-    if (ws.getMonth() === we.getMonth()) {
-      return `${ws.getDate()}–${we.getDate()} ${MONTHS_HE[ws.getMonth()]} ${ws.getFullYear()}`;
-    }
-    return `${ws.getDate()} ${MONTHS_HE[ws.getMonth()]} – ${we.getDate()} ${MONTHS_HE[we.getMonth()]}`;
+    return ws.getMonth() === we.getMonth()
+      ? `${ws.getDate()}–${we.getDate()} ${MONTHS_HE[ws.getMonth()]} ${ws.getFullYear()}`
+      : `${ws.getDate()} ${MONTHS_HE[ws.getMonth()]} – ${we.getDate()} ${MONTHS_HE[we.getMonth()]}`;
   }
-  if (view === 'month') {
-    const ms = getMonthStart(calOffset);
-    return `${MONTHS_HE[ms.getMonth()]} ${ms.getFullYear()}`;
-  }
-  if (view === 'day') {
-    return selectedDate.toLocaleDateString('he-IL', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
-  }
+  if (view === 'month') { const ms = getMonthStart(calOffset); return `${MONTHS_HE[ms.getMonth()]} ${ms.getFullYear()}`; }
+  if (view === 'day')   return selectedDate.toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   return '';
 };
 
 const renderWeek = () => {
-  const ws = getWeekStart(calOffset);
-  const t0 = today();
+  const ws = getWeekStart(calOffset), t0 = today();
   let cols = '';
   for (let i = 0; i < 7; i++) {
     const d = new Date(ws); d.setDate(d.getDate() + i);
-    const isTod = sameDay(d, t0);
-    const isSel = sameDay(d, selectedDate);
-    const dayTasks = tasksOnDate(d);
-    const dots = dayTasks.slice(0,3).map(t => `<span class="day-dot" style="background:${t.color||'#8E8E93'}"></span>`).join('');
-    cols += `
-      <div class="day-col">
-        <span class="day-label">${DOW[i]}</span>
-        <div class="day-num ${isTod?'today':''} ${isSel&&!isTod?'selected':''}"
-          onclick="selectDay(${d.getTime()})">${d.getDate()}</div>
-        <div class="day-dot-row">${dots}</div>
-      </div>`;
+    const isTod = sameDay(d, t0), isSel = sameDay(d, selectedDate);
+    const dots = tasksOnDate(d).slice(0,3).map(t => `<span class="day-dot" style="background:${t.color||'#8E8E93'}"></span>`).join('');
+    cols += `<div class="day-col">
+      <span class="day-label">${DOW[i]}</span>
+      <div class="day-num ${isTod?'today':''} ${isSel&&!isTod?'selected':''}" onclick="selectDay(${d.getTime()})">${d.getDate()}</div>
+      <div class="day-dot-row">${dots}</div>
+    </div>`;
   }
-  return `
-    <div class="cal-nav">
-      <button class="nav-arrow" onclick="changeOffset(1)">‹</button>
-      <h2>${navLabel()}</h2>
-      <button class="nav-arrow" onclick="changeOffset(-1)">›</button>
-    </div>
-    <div class="week-grid">${cols}</div>`;
+  return `<div class="cal-nav">
+    <button class="nav-arrow" onclick="changeOffset(1)">‹</button>
+    <h2>${navLabel()}</h2>
+    <button class="nav-arrow" onclick="changeOffset(-1)">›</button>
+  </div>
+  <div class="week-grid">${cols}</div>`;
 };
 
 const renderMonth = () => {
-  const ms = getMonthStart(calOffset);
-  const t0 = today();
+  const ms = getMonthStart(calOffset), t0 = today();
   const year = ms.getFullYear(), month = ms.getMonth();
-  const firstDow = ms.getDay(); // 0=Sun
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const daysInPrev = new Date(year, month, 0).getDate();
+  const firstDow = ms.getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const daysInPrev  = new Date(year, month, 0).getDate();
+  const dowHdr = DOW.map(d=>`<div class="month-dow">${d}</div>`).join('');
   let cells = '';
-  // Header
-  const dowHdr = DOW.map(d => `<div class="month-dow">${d}</div>`).join('');
-  // Cells: start from Sunday
   for (let i = 0; i < 42; i++) {
-    let day, isOther = false, date;
-    if (i < firstDow) { day = daysInPrev - firstDow + i + 1; isOther = true; date = new Date(year, month - 1, day); }
-    else if (i >= firstDow + daysInMonth) { day = i - firstDow - daysInMonth + 1; isOther = true; date = new Date(year, month + 1, day); }
-    else { day = i - firstDow + 1; date = new Date(year, month, day); }
-    const isTod = sameDay(date, t0);
-    const isSel = sameDay(date, selectedDate);
-    const dayTasks = tasksOnDate(date);
-    const dots = dayTasks.slice(0,3).map(t => `<span class="mdot" style="background:${t.color||'#8E8E93'}"></span>`).join('');
-    cells += `
-      <div class="month-cell ${isOther?'other-month':''} ${isTod?'today':''} ${isSel&&!isTod?'selected':''}"
-        onclick="selectDay(${date.getTime()})">
-        <div class="mn">${day}</div>
-        <div class="mdots">${dots}</div>
-      </div>`;
-  }
-  return `
-    <div class="cal-nav">
-      <button class="nav-arrow" onclick="changeOffset(1)">‹</button>
-      <h2>${navLabel()}</h2>
-      <button class="nav-arrow" onclick="changeOffset(-1)">›</button>
-    </div>
-    <div class="month-grid">
-      <div class="month-dow-row">${dowHdr}</div>
-      <div class="month-days-grid">${cells}</div>
+    let day, isOther=false, date;
+    if (i < firstDow)
+      { day=daysInPrev-firstDow+i+1; isOther=true; date=new Date(year,month-1,day); }
+    else if (i >= firstDow+daysInMonth)
+      { day=i-firstDow-daysInMonth+1; isOther=true; date=new Date(year,month+1,day); }
+    else
+      { day=i-firstDow+1; date=new Date(year,month,day); }
+    const isTod=sameDay(date,t0), isSel=sameDay(date,selectedDate);
+    const dots=tasksOnDate(date).slice(0,3).map(t=>`<span class="mdot" style="background:${t.color||'#8E8E93'}"></span>`).join('');
+    cells+=`<div class="month-cell ${isOther?'other-month':''} ${isTod?'today':''} ${isSel&&!isTod?'selected':''}" onclick="selectDay(${date.getTime()})">
+      <div class="mn">${day}</div><div class="mdots">${dots}</div>
     </div>`;
+  }
+  return `<div class="cal-nav">
+    <button class="nav-arrow" onclick="changeOffset(1)">‹</button>
+    <h2>${navLabel()}</h2>
+    <button class="nav-arrow" onclick="changeOffset(-1)">›</button>
+  </div>
+  <div class="month-grid">
+    <div class="month-dow-row">${dowHdr}</div>
+    <div class="month-days-grid">${cells}</div>
+  </div>`;
 };
 
-const renderDayNav = () => {
-  return `
-    <div class="cal-nav">
-      <button class="nav-arrow" onclick="changeOffset(1)">‹</button>
-      <h2>${navLabel()}</h2>
-      <button class="nav-arrow" onclick="changeOffset(-1)">›</button>
-    </div>
-    ${renderDayHours()}`;
-};
+const renderDayNav = () => `
+  <div class="cal-nav">
+    <button class="nav-arrow" onclick="changeOffset(1)">‹</button>
+    <h2>${navLabel()}</h2>
+    <button class="nav-arrow" onclick="changeOffset(-1)">›</button>
+  </div>
+  ${renderDayHours()}`;
 
 const renderDayHours = () => {
-  const dayTasks = tasksOnDate(selectedDate);
   const bucketed = {};
-  dayTasks.forEach(t => {
+  tasksOnDate(selectedDate).forEach(t => {
     const h = t.dueDate ? new Date(t.dueDate).getHours() : -1;
-    if (!bucketed[h]) bucketed[h] = [];
-    bucketed[h].push(t);
+    (bucketed[h] = bucketed[h]||[]).push(t);
   });
   let rows = '';
   for (let h = 6; h <= 23; h++) {
-    const ts = (bucketed[h] || []);
-    const events = ts.map(t => `
-      <div class="mini-event" style="background:${t.color||'#8E8E93'}" onclick="openEditModal('${t.id}')">
-        ${escHtml(t.title)}
-      </div>`).join('');
-    rows += `
-      <div class="hour-row">
-        <div class="hour-label">${h}:00</div>
-        <div class="hour-events">${events}</div>
-      </div>`;
+    const evs = (bucketed[h]||[]).map(t =>
+      `<div class="mini-event" style="background:${t.color||'#8E8E93'}" onclick="openEditModal('${t.id}')">${escHtml(t.title)}</div>`
+    ).join('');
+    rows += `<div class="hour-row">
+      <div class="hour-label">${h}:00</div>
+      <div class="hour-events">${evs}</div>
+    </div>`;
   }
   return `<div class="day-view">${rows}</div>`;
 };
 
-const selectDay = ts => {
-  selectedDate = new Date(ts);
-  renderAll();
-};
-
+const selectDay = ts => { selectedDate = new Date(ts); renderAll(); };
 const changeOffset = delta => {
-  if (view === 'day') {
-    selectedDate.setDate(selectedDate.getDate() + delta);
-  } else {
-    calOffset += delta;
-  }
+  if (view === 'day') selectedDate.setDate(selectedDate.getDate() + delta);
+  else calOffset += delta;
   renderAll();
 };
 
@@ -769,64 +995,81 @@ const changeOffset = delta => {
 const renderTaskSection = () => {
   let filtered;
   if (view === 'list') {
-    filtered = [...tasks].sort((a, b) => {
-      if (a.dueDate && b.dueDate) return new Date(a.dueDate) - new Date(b.dueDate);
-      if (a.dueDate) return -1;
-      if (b.dueDate) return 1;
-      return new Date(b.createdAt) - new Date(a.createdAt);
+    filtered = [...tasks].sort((a,b) => {
+      if (a.dueDate && b.dueDate) return new Date(a.dueDate)-new Date(b.dueDate);
+      if (a.dueDate) return -1; if (b.dueDate) return 1;
+      return new Date(b.createdAt)-new Date(a.createdAt);
     });
   } else {
     filtered = tasksOnDate(selectedDate);
   }
-
-  if (view !== 'list' && view !== 'day') {
-    // Show tasks for selected day below calendar in week/month view
-    const label = selectedDate.toLocaleDateString('he-IL', {weekday:'long', day:'numeric', month:'long'});
+  if (view === 'day') return '';
+  if (view !== 'list') {
+    const label = selectedDate.toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'});
     return `<div class="section-header">משימות – ${label}</div>` + renderTaskCards(filtered);
   }
-  if (view === 'day') {
-    return ''; // day view shows tasks inline in hours
-  }
-  // List view
-  const withDate = filtered.filter(t => t.dueDate);
-  const noDate = filtered.filter(t => !t.dueDate);
+  const withDate = filtered.filter(t=>t.dueDate), noDate = filtered.filter(t=>!t.dueDate);
   let out = '';
   if (withDate.length) out += '<div class="section-header">עם תאריך</div>' + renderTaskCards(withDate);
-  if (noDate.length) out += '<div class="section-header">ללא תאריך</div>' + renderTaskCards(noDate);
+  if (noDate.length)   out += '<div class="section-header">ללא תאריך</div>' + renderTaskCards(noDate);
   if (!filtered.length) out = `<div class="empty"><div class="icon">📋</div><p>אין משימות עדיין</p></div>`;
   return out;
 };
 
-const renderTaskCards = tasks => {
-  if (!tasks.length) return `<div class="empty"><div class="icon">✨</div><p>אין משימות ביום זה</p></div>`;
-  return `<div class="task-list">${tasks.map(renderTask).join('')}</div>`;
+const renderTaskCards = list => {
+  if (!list.length) return `<div class="empty"><div class="icon">✨</div><p>אין משימות ביום זה</p></div>`;
+  return `<div class="task-list">${list.map(renderTask).join('')}</div>`;
 };
 
 const renderTask = t => {
-  const cat = t.category ? CAT_MAP[t.category] : null;
+  const cat   = t.category ? CAT_MAP[t.category] : null;
   const color = t.color || '#8E8E93';
-  const tag = cat ? `<span class="task-tag" style="background:${color}">${cat.emoji} ${cat.label}</span>` : '';
+  const tag     = cat ? `<span class="task-tag" style="background:${color}">${cat.emoji} ${cat.label}</span>` : '';
   const timeStr = t.dueDate ? `<span class="task-time">⏰ ${fmtDateTime(t.dueDate)}</span>` : '';
-  const linkEl = t.link ? `<a class="task-link" href="${escHtml(t.link)}" target="_blank" onclick="event.stopPropagation()">🔗 קישור</a>` : '';
+  const linkEl  = t.link ? `<a class="task-link" href="${escHtml(t.link)}" target="_blank" onclick="event.stopPropagation()">🔗 קישור</a>` : '';
   const created = `<span class="task-time">נוצר: ${fmtDateTime(t.createdAt)}</span>`;
-  return `
-    <div class="task-card ${t.done?'done':''}" style="border-right-color:${color}" onclick="openEditModal('${t.id}')">
-      <div class="task-check ${t.done?'checked':''}" onclick="toggleDone('${t.id}',event)">${t.done?'✓':''}</div>
-      <div class="task-body">
-        <div class="task-title">${escHtml(t.title)}</div>
-        <div class="task-meta">${tag}${timeStr}${linkEl}</div>
-        <div class="task-meta">${created}</div>
-      </div>
-      <div class="task-actions">
-        <button class="action-btn" onclick="event.stopPropagation();deleteTask('${t.id}')" title="מחק">🗑️</button>
-      </div>
-    </div>`;
+  return `<div class="task-card ${t.done?'done':''}" style="border-right-color:${color}" onclick="openEditModal('${t.id}')">
+    <div class="task-check ${t.done?'checked':''}" onclick="toggleDone('${t.id}',event)">${t.done?'✓':''}</div>
+    <div class="task-body">
+      <div class="task-title">${escHtml(t.title)}</div>
+      <div class="task-meta">${tag}${timeStr}${linkEl}</div>
+      <div class="task-meta">${created}</div>
+    </div>
+    <div class="task-actions">
+      <button class="action-btn" onclick="event.stopPropagation();deleteTask('${t.id}')" title="מחק">🗑️</button>
+    </div>
+  </div>`;
+};
+
+// ===== NOTES VIEW =====
+const renderNotesView = () => {
+  if (!notes.length) return `<div class="empty"><div class="icon">📝</div><p>אין פתקים עדיין<br>לחץ + להוספת פתק חדש</p></div>`;
+  const sorted = [...notes].sort((a,b) => new Date(b.updatedAt||b.createdAt) - new Date(a.updatedAt||a.createdAt));
+  return `<div class="section-header">כל הפתקים (${notes.length})</div>
+    <div class="note-list">${sorted.map(renderNoteCard).join('')}</div>`;
+};
+
+const renderNoteCard = n => {
+  const title   = escHtml(noteTitle(n));
+  const preview = escHtml(notePreview(n));
+  const meta    = `עודכן: ${fmtDateTime(n.updatedAt||n.createdAt)}`;
+  const thumb   = n.sketchData ? `<img class="note-sketch-thumb" src="${n.sketchData}" alt="סקיצה">` : '';
+  return `<div class="note-card" onclick="openNoteModal('${n.id}')">
+    <div class="note-icon">📝</div>
+    <div class="note-body">
+      <div class="note-card-title">${title}</div>
+      ${preview ? `<div class="note-card-preview">${preview}</div>` : ''}
+      <div class="note-card-meta">${meta}</div>
+    </div>
+    ${thumb}
+    <div class="task-actions">
+      <button class="action-btn" onclick="event.stopPropagation();deleteNote('${n.id}')" title="מחק">🗑️</button>
+    </div>
+  </div>`;
 };
 
 // ===== INIT =====
 renderAll();
-
-// Re-schedule notifications for existing tasks on load
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.ready.then(reg => {
     swReg = reg;

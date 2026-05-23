@@ -154,16 +154,6 @@
     .month-cell .mdots { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
     .month-cell .mdot { width: 5px; height: 5px; border-radius: 50%; }
 
-    /* ===== DAY VIEW ===== */
-    .day-view { padding: 8px 16px; }
-    .hour-row { display: flex; gap: 8px; min-height: 48px; border-top: 1px solid var(--border); }
-    .hour-label { font-size: 11px; color: var(--sub); width: 36px; padding-top: 6px; text-align: center; flex-shrink: 0; }
-    .hour-events { flex: 1; padding: 4px 0; display: flex; flex-direction: column; gap: 2px; }
-    .mini-event {
-      font-size: 11px; padding: 2px 6px; border-radius: 6px;
-      color: #fff; cursor: pointer; overflow: hidden;
-      text-overflow: ellipsis; white-space: nowrap;
-    }
 
     /* ===== SECTION HEADER ===== */
     .section-header {
@@ -427,6 +417,7 @@ let sketchMode     = 'pen';
 // voice state
 let recognition = null;
 let recognitionTarget = 'task'; // 'task' | 'note'
+let voiceAutoSubmit  = false;   // submit after user manually stops mic
 
 const save      = () => localStorage.setItem('mytasks_tasks', JSON.stringify(tasks));
 const saveNotes = () => localStorage.setItem('mytasks_notes', JSON.stringify(notes));
@@ -562,21 +553,38 @@ if (SpeechRec) {
     micBtn.classList.remove('recording');
     const nm = document.getElementById('note-mic-btn');
     if (nm) nm.classList.remove('recording');
-    recognitionTarget = 'task';
+
+    const shouldSubmit = voiceAutoSubmit;
+    const target       = recognitionTarget;
+    voiceAutoSubmit    = false;
+    recognitionTarget  = 'task';
+
+    if (shouldSubmit) {
+      if (target === 'note') {
+        // Auto-save the note modal
+        saveNote();
+      } else {
+        // Auto-create task or note from input bar
+        if (taskInput.value.trim()) {
+          view === 'notes' ? addNote() : addTask();
+        }
+      }
+    }
   };
   recognition.onerror = () => {
     micBtn.classList.remove('recording');
     const nm = document.getElementById('note-mic-btn');
     if (nm) nm.classList.remove('recording');
-    recognitionTarget = 'task';
+    voiceAutoSubmit = false; recognitionTarget = 'task';
     showToast('שגיאה בזיהוי קול');
   };
 
   micBtn.addEventListener('click', () => {
     if (micBtn.classList.contains('recording')) {
+      voiceAutoSubmit = true;
       recognition.stop();
     } else {
-      recognitionTarget = 'task';
+      recognitionTarget = 'task'; voiceAutoSubmit = false;
       micBtn.classList.add('recording');
       try { recognition.start(); } catch(e) {}
     }
@@ -591,9 +599,10 @@ const toggleNoteMic = () => {
   if (!recognition) { showToast('זיהוי קול לא נתמך'); return; }
   const btn = document.getElementById('note-mic-btn');
   if (btn.classList.contains('recording')) {
+    voiceAutoSubmit = true;
     recognition.stop();
   } else {
-    recognitionTarget = 'note';
+    recognitionTarget = 'note'; voiceAutoSubmit = false;
     btn.classList.add('recording');
     try { recognition.start(); } catch(e) {}
   }
@@ -1016,25 +1025,14 @@ const renderDayNav = () => `
     <h2>${navLabel()}</h2>
     <button class="nav-arrow" onclick="changeOffset(-1)">›</button>
   </div>
-  ${renderDayHours()}`;
+  ${renderDayList()}`;
 
-const renderDayHours = () => {
-  const bucketed = {};
-  tasksOnDate(selectedDate).forEach(t => {
-    const h = t.dueDate ? new Date(t.dueDate).getHours() : -1;
-    (bucketed[h] = bucketed[h]||[]).push(t);
+const renderDayList = () => {
+  const dayTasks = tasksOnDate(selectedDate).sort((a, b) => {
+    if (a.dueDate && b.dueDate) return new Date(a.dueDate) - new Date(b.dueDate);
+    if (a.dueDate) return -1; if (b.dueDate) return 1; return 0;
   });
-  let rows = '';
-  for (let h = 6; h <= 23; h++) {
-    const evs = (bucketed[h]||[]).map(t =>
-      `<div class="mini-event" style="background:${t.color||'#8E8E93'}" onclick="openEditModal('${t.id}')">${escHtml(t.title)}</div>`
-    ).join('');
-    rows += `<div class="hour-row">
-      <div class="hour-label">${h}:00</div>
-      <div class="hour-events">${evs}</div>
-    </div>`;
-  }
-  return `<div class="day-view">${rows}</div>`;
+  return renderTaskCards(dayTasks);
 };
 
 const selectDay = ts => { selectedDate = new Date(ts); renderAll(); };

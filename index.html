@@ -396,6 +396,15 @@
     }
     .rec-btn.active { background: var(--card); color: var(--blue); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
 
+    .recur-range { margin-top: 10px; }
+    .recur-preview {
+      margin-top: 8px; padding: 8px 12px;
+      background: #EEF4FF; border-radius: 10px;
+      font-size: 13px; color: var(--blue); font-weight: 500;
+      display: none;
+    }
+    .recur-preview.visible { display: block; }
+
     /* ===== HEADER BUTTONS ===== */
     .header-actions { display: flex; gap: 6px; }
 
@@ -504,6 +513,22 @@ const nextOccurrence = (isoDate, recurrence) => {
   if (recurrence === 'monthly') d.setMonth(d.getMonth() + 1);
   if (recurrence === 'yearly')  d.setFullYear(d.getFullYear() + 1);
   return d.toISOString();
+};
+
+const generateOccurrences = (startISO, endDateStr, recurrence) => {
+  const dates = [];
+  const current = new Date(startISO);
+  const endDate = new Date(endDateStr + 'T23:59:59');
+  let limit = 400;
+  while (current <= endDate && limit-- > 0) {
+    if (current.getDay() !== 6) dates.push(new Date(current).toISOString());
+    if (recurrence === 'daily')        current.setDate(current.getDate() + 1);
+    else if (recurrence === 'weekly')  current.setDate(current.getDate() + 7);
+    else if (recurrence === 'monthly') current.setMonth(current.getMonth() + 1);
+    else if (recurrence === 'yearly')  current.setFullYear(current.getFullYear() + 1);
+    else break;
+  }
+  return dates;
 };
 
 // ===== UTILS =====
@@ -821,6 +846,7 @@ const openEditModal = id => {
   const dueDateLocal    = task.dueDate    ? toLocalISO(new Date(task.dueDate))    : toLocalISO(new Date());
   const notifDateLocal  = task.notifDate  ? toLocalISO(new Date(task.notifDate))  : '';
   const createdDisplay  = task.createdAt  ? fmtDateTime(task.createdAt)           : fmtDateTime(new Date().toISOString());
+  const recIsSet        = !!task.recurrence;
   document.body.insertAdjacentHTML('beforeend', `
     <div class="modal-backdrop" id="modal-bd">
       <div class="modal" id="modal">
@@ -860,6 +886,11 @@ const openEditModal = id => {
           <div class="recurrence-bar">
             ${RECUR.map(r => `<button class="rec-btn ${(task.recurrence||null)===r.id?'active':''}" data-recur="${r.id}" onclick="setRecurrence(this)">${r.label}</button>`).join('')}
           </div>
+          <div class="recur-range" id="recur-range-wrap" style="${recIsSet ? '' : 'display:none'}">
+            <label style="font-size:13px;font-weight:600;color:var(--sub);display:block;margin-top:10px;margin-bottom:6px;">עד תאריך</label>
+            <input id="m-recur-end" type="date" style="width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:16px;font-family:inherit;direction:rtl;text-align:right;background:var(--bg);color:var(--text);outline:none;" oninput="updateRecurPreview()">
+            <div class="recur-preview" id="recur-preview"></div>
+          </div>
         </div>
 
         <div class="field">
@@ -892,21 +923,65 @@ const closeModal = () => { document.getElementById('modal-bd')?.remove(); editin
 const setRecurrence = btn => {
   document.querySelectorAll('.rec-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  const isRecur = btn.dataset.recur !== 'null' && btn.dataset.recur !== '';
+  const rangeWrap = document.getElementById('recur-range-wrap');
+  if (rangeWrap) rangeWrap.style.display = isRecur ? '' : 'none';
+  updateRecurPreview();
+};
+
+const updateRecurPreview = () => {
+  const preview = document.getElementById('recur-preview');
+  if (!preview) return;
+  const recurEl  = document.querySelector('.rec-btn.active');
+  const recurVal = recurEl?.dataset.recur;
+  const recur    = (!recurVal || recurVal === 'null') ? null : recurVal;
+  const endVal   = document.getElementById('m-recur-end')?.value;
+  const dateVal  = document.getElementById('m-date')?.value;
+  if (!recur || !endVal || !dateVal) { preview.classList.remove('visible'); return; }
+  const dates = generateOccurrences(new Date(dateVal).toISOString(), endVal, recur);
+  preview.textContent = `יוצר ${dates.length} משימות (א׳–ו׳, ללא שבת)`;
+  preview.classList.toggle('visible', dates.length > 0);
 };
 const selectCat = id => {
   document.querySelectorAll('.color-opt').forEach(el => el.classList.toggle('selected', el.dataset.cat === id));
 };
 const saveTask = () => {
-  const title     = document.getElementById('m-title').value.trim();
+  const title    = document.getElementById('m-title').value.trim();
   if (!title) { showToast('יש להזין כותרת'); return; }
-  const dateVal   = document.getElementById('m-date').value;
-  const notifVal  = document.getElementById('m-notif').value;
-  const link      = document.getElementById('m-link').value.trim();
-  const catEl     = document.querySelector('.color-opt.selected');
-  const catId     = catEl ? catEl.dataset.cat : null;
+  const dateVal  = document.getElementById('m-date').value;
+  const notifVal = document.getElementById('m-notif').value;
+  const link     = document.getElementById('m-link').value.trim();
+  const catEl    = document.querySelector('.color-opt.selected');
+  const catId    = catEl ? catEl.dataset.cat : null;
   const recurEl  = document.querySelector('.rec-btn.active');
   const recurVal = recurEl?.dataset.recur;
   const recur    = (!recurVal || recurVal === 'null') ? null : recurVal;
+  const endVal   = document.getElementById('m-recur-end')?.value;
+
+  if (recur && endVal && dateVal) {
+    const startISO = new Date(dateVal).toISOString();
+    const dates    = generateOccurrences(startISO, endVal, recur);
+    if (!dates.length) { showToast('אין תאריכים בטווח זה'); return; }
+    if (editingTaskId) { cancelNotif(editingTaskId); tasks = tasks.filter(t => t.id !== editingTaskId); }
+    const notifOffset = (notifVal && dateVal)
+      ? new Date(notifVal).getTime() - new Date(dateVal).getTime()
+      : null;
+    const now = new Date().toISOString();
+    const newTasks = dates.map(iso => ({
+      id: uid(), title, link,
+      category: catId, color: catId ? CAT_MAP[catId].color : null,
+      recurrence: null, done: false, createdAt: now,
+      dueDate: iso,
+      notifDate: notifOffset !== null ? new Date(new Date(iso).getTime() + notifOffset).toISOString() : null,
+    }));
+    tasks = [...newTasks, ...tasks];
+    save();
+    newTasks.forEach(t => scheduleNotif(t));
+    closeModal(); renderAll();
+    showToast(`נוצרו ${newTasks.length} משימות ✓`);
+    return;
+  }
+
   let task = tasks.find(t => t.id === editingTaskId);
   if (!task) { task = { id: uid(), createdAt: new Date().toISOString(), done: false }; tasks.unshift(task); }
   task.title      = title;

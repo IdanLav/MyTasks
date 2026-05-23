@@ -367,6 +367,44 @@
     }
 
     /* ===== EMPTY STATE ===== */
+    /* ===== INSTALL BANNER ===== */
+    .install-banner {
+      background: linear-gradient(135deg, #4A90D9, #2C5F8A);
+      color: #fff; padding: 12px 16px;
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 13px; line-height: 1.5;
+    }
+    .install-banner-icon { font-size: 24px; flex-shrink: 0; }
+    .install-banner-body { flex: 1; }
+    .install-banner-title { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+    .install-banner-close {
+      background: rgba(255,255,255,.2); border: none; border-radius: 50%;
+      color: #fff; width: 26px; height: 26px; cursor: pointer;
+      font-size: 14px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    }
+
+    /* ===== RECURRENCE BAR ===== */
+    .recurrence-bar {
+      display: flex; gap: 0; background: var(--border);
+      border-radius: 10px; padding: 2px;
+    }
+    .rec-btn {
+      flex: 1; padding: 7px 4px; border: none; background: transparent;
+      border-radius: 8px; font-size: 12px; font-weight: 500;
+      cursor: pointer; color: var(--sub); transition: all .2s;
+      font-family: inherit;
+    }
+    .rec-btn.active { background: var(--card); color: var(--blue); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+
+    /* ===== HEADER BUTTONS ===== */
+    .header-actions { display: flex; gap: 6px; }
+
+    /* ===== RECURRENCE BADGE on card ===== */
+    .rec-badge {
+      font-size: 11px; color: var(--blue); background: #EEF4FF;
+      padding: 2px 7px; border-radius: 8px; font-weight: 600;
+    }
+
     .empty { text-align: center; padding: 40px 16px; color: var(--sub); }
     .empty .icon { font-size: 48px; margin-bottom: 12px; }
     .empty p { font-size: 16px; }
@@ -391,8 +429,12 @@
 <div id="app">
   <header>
     <h1>MyTasks ✓</h1>
-    <button class="header-btn" id="notif-btn" title="הפעל התראות">🔔</button>
+    <div class="header-actions">
+      <button class="header-btn" id="export-btn" title="גיבוי נתונים">💾</button>
+      <button class="header-btn" id="notif-btn" title="הפעל התראות">🔔</button>
+    </div>
   </header>
+  <div id="install-banner-slot"></div>
   <main id="main-content"></main>
   <div class="input-bar">
     <div class="input-row">
@@ -417,11 +459,19 @@ const CATS = [
 const CAT_MAP = Object.fromEntries(CATS.map(c => [c.id, c]));
 const DOW = ['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
 const MONTHS_HE = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+const RECUR = [
+  { id: null,       label: 'ללא'   },
+  { id: 'daily',    label: 'יומי'  },
+  { id: 'weekly',   label: 'שבועי' },
+  { id: 'monthly',  label: 'חודשי' },
+  { id: 'yearly',   label: 'שנתי'  },
+];
 
 // ===== STATE =====
-let tasks = JSON.parse(localStorage.getItem('mytasks_tasks') || '[]');
-let notes = JSON.parse(localStorage.getItem('mytasks_notes') || '[]');
-let view  = localStorage.getItem('mytasks_view') || 'week';
+let tasks      = JSON.parse(localStorage.getItem('mytasks_tasks')  || '[]');
+let notes      = JSON.parse(localStorage.getItem('mytasks_notes')  || '[]');
+let firedNotifs = JSON.parse(localStorage.getItem('mytasks_fired') || '{}');
+let view       = localStorage.getItem('mytasks_view') || 'week';
 let selectedDate = new Date();
 let calOffset = 0;
 let editingTaskId = null;
@@ -442,8 +492,19 @@ let recognition = null;
 let recognitionTarget = 'task'; // 'task' | 'note'
 let voiceAutoSubmit  = false;   // submit after user manually stops mic
 
-const save      = () => localStorage.setItem('mytasks_tasks', JSON.stringify(tasks));
-const saveNotes = () => localStorage.setItem('mytasks_notes', JSON.stringify(notes));
+const save       = () => localStorage.setItem('mytasks_tasks',  JSON.stringify(tasks));
+const saveNotes  = () => localStorage.setItem('mytasks_notes',  JSON.stringify(notes));
+const saveFired  = () => localStorage.setItem('mytasks_fired',  JSON.stringify(firedNotifs));
+
+const nextOccurrence = (isoDate, recurrence) => {
+  if (!isoDate || !recurrence) return null;
+  const d = new Date(isoDate);
+  if (recurrence === 'daily')   d.setDate(d.getDate() + 1);
+  if (recurrence === 'weekly')  d.setDate(d.getDate() + 7);
+  if (recurrence === 'monthly') d.setMonth(d.getMonth() + 1);
+  if (recurrence === 'yearly')  d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString();
+};
 
 // ===== UTILS =====
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -478,49 +539,43 @@ const showToast = msg => {
 
 // ===== NOTIFICATIONS =====
 const pendingNotifs = {}; // taskId → timeoutId
-
-const showIosInstallGuide = () => {
-  if (document.getElementById('ios-guide')) return;
-  const el = document.createElement('div');
-  el.id = 'ios-guide';
-  el.style.cssText = 'position:fixed;bottom:80px;left:12px;right:12px;background:#1C1C1E;color:#fff;padding:16px 18px;border-radius:18px;font-size:14px;z-index:9999;line-height:1.7;box-shadow:0 8px 32px rgba(0,0,0,.4)';
-  el.innerHTML = `<div style="font-weight:700;font-size:15px;margin-bottom:8px">📲 התקנה כ-PWA נדרשת להתראות</div>
-    <div>1. לחץ <strong>🔗 שתף</strong> בספארי</div>
-    <div>2. בחר <strong>"הוסף למסך הבית"</strong></div>
-    <div>3. פתח מהמסך הבית ואשר התראות</div>
-    <button onclick="document.getElementById('ios-guide').remove()" style="margin-top:12px;padding:9px 22px;background:#4A90D9;border:none;border-radius:12px;color:#fff;font-size:14px;cursor:pointer;font-family:inherit;font-weight:600">הבנתי</button>`;
-  document.body.appendChild(el);
-};
-
-const requestNotifPermission = async () => {
-  const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent);
-  const isPwa = window.navigator.standalone === true;
-
-  if (!('Notification' in window)) {
-    if (isIos && !isPwa) { showIosInstallGuide(); }
-    else { showToast('התראות לא נתמכות בדפדפן זה'); }
-    return;
-  }
-  if (isIos && !isPwa) { showIosInstallGuide(); return; }
-
-  const p = await Notification.requestPermission();
-  if (p === 'granted') {
-    showToast('התראות הופעלו ✓');
-    tasks.forEach(t => { if ((t.notifDate || t.dueDate) && !t.done) scheduleNotif(t); });
-  } else if (p === 'denied') {
-    showToast('התראות חסומות – אפשר בהגדרות האייפון');
-  } else {
-    showToast('יש לאשר התראות');
-  }
-};
+const isPwa = () => window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+const isIos = () => /iPhone|iPad|iPod/.test(navigator.userAgent);
 
 const fireNotif = (title, opts) => {
   if (swReg) return swReg.showNotification(title, opts);
-  return Promise.resolve(new Notification(title, opts));
+  if ('Notification' in window && Notification.permission === 'granted') return new Notification(title, opts);
+};
+
+// Fires any notifications missed while app was closed (up to 24h back)
+const checkOverdueNotifs = () => {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const now = Date.now();
+  const DAY = 24 * 60 * 60 * 1000;
+  let changed = false;
+  tasks.forEach(t => {
+    if (t.done) return;
+    const alertDate = t.notifDate || t.dueDate;
+    if (!alertDate) return;
+    const alertTs = new Date(alertDate).getTime();
+    if (alertTs > now || alertTs < now - DAY) return; // future or too old
+    const key = `${t.id}@${alertTs}`;
+    if (firedNotifs[key]) return; // already fired
+    firedNotifs[key] = now; changed = true;
+    const body = (t.category ? `[${CAT_MAP[t.category]?.label}] ` : '') + fmtDateTime(alertDate);
+    fireNotif('⏰ ' + t.title, {
+      body, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png',
+      requireInteraction: true, vibrate: [300,100,300,100,300,100,600],
+      tag: `task-${t.id}`, renotify: true
+    });
+  });
+  if (changed) saveFired();
+  // Prune entries older than 2 days
+  const cutoff = now - 2 * DAY;
+  Object.keys(firedNotifs).forEach(k => { if (firedNotifs[k] < cutoff) delete firedNotifs[k]; });
 };
 
 const scheduleNotif = task => {
-  // notifDate drives the alert; fall back to dueDate if not set
   const alertDate = task.notifDate || task.dueDate;
   if (!alertDate || task.done) return;
   if (pendingNotifs[task.id]) clearTimeout(pendingNotifs[task.id]);
@@ -530,11 +585,20 @@ const scheduleNotif = task => {
   pendingNotifs[task.id] = setTimeout(() => {
     delete pendingNotifs[task.id];
     if (Notification.permission !== 'granted') return;
+    const key = `${task.id}@${new Date(alertDate).getTime()}`;
+    if (firedNotifs[key]) return;
+    firedNotifs[key] = Date.now(); saveFired();
     const body = (task.category ? `[${CAT_MAP[task.category]?.label}] ` : '') + fmtDateTime(alertDate);
     const base = { body, icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', requireInteraction: true, vibrate: [300,100,300,100,300,100,600], renotify: true };
     fireNotif('⏰ ' + task.title, { ...base, tag: `t-${task.id}-1` });
     setTimeout(() => fireNotif('🔔🔔 ' + task.title, { ...base, tag: `t-${task.id}-2` }), 5000);
     setTimeout(() => fireNotif('‼️ ' + task.title + ' ‼️', { ...base, tag: `t-${task.id}-3` }), 10000);
+    // Auto-schedule next occurrence for recurring tasks
+    if (task.recurrence) {
+      task.dueDate   = nextOccurrence(task.dueDate,   task.recurrence);
+      task.notifDate = nextOccurrence(task.notifDate, task.recurrence);
+      save(); scheduleNotif(task); renderAll();
+    }
   }, delay);
 };
 
@@ -542,17 +606,79 @@ const cancelNotif = id => {
   if (pendingNotifs[id]) { clearTimeout(pendingNotifs[id]); delete pendingNotifs[id]; }
 };
 
-// Reschedule on app focus (handles re-open after background)
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && Notification.permission === 'granted') {
+const requestNotifPermission = async () => {
+  if (!('Notification' in window)) {
+    if (isIos() && !isPwa()) showInstallBanner();
+    else showToast('התראות לא נתמכות בדפדפן זה');
+    return;
+  }
+  if (isIos() && !isPwa()) { showInstallBanner(); return; }
+  const p = await Notification.requestPermission();
+  if (p === 'granted') {
+    showToast('התראות הופעלו ✓');
+    checkOverdueNotifs();
     tasks.forEach(t => { if ((t.notifDate || t.dueDate) && !t.done) scheduleNotif(t); });
+  } else if (p === 'denied') {
+    showToast('חסומות — אפשר בהגדרות האייפון ← Safari ← התראות');
+  } else {
+    showToast('יש לאשר התראות');
+  }
+};
+
+// Check every 30 seconds while app is open
+setInterval(checkOverdueNotifs, 30000);
+
+// On focus/foreground restore
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    checkOverdueNotifs();
+    if (Notification.permission === 'granted') {
+      tasks.forEach(t => { if ((t.notifDate || t.dueDate) && !t.done) scheduleNotif(t); });
+    }
   }
 });
 
 // ===== SERVICE WORKER =====
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').then(r => { swReg = r; });
+  navigator.serviceWorker.register('/sw.js').then(r => {
+    swReg = r;
+    // Ensure SW is active before using it
+    return r.update();
+  }).catch(() => {});
 }
+
+// ===== PWA INSTALL BANNER =====
+const showInstallBanner = () => {
+  const slot = document.getElementById('install-banner-slot');
+  if (!slot || slot.children.length) return;
+  const ios = isIos();
+  slot.innerHTML = `
+    <div class="install-banner">
+      <div class="install-banner-icon">📲</div>
+      <div class="install-banner-body">
+        <div class="install-banner-title">התקן כאפליקציה לקבלת התראות</div>
+        ${ios
+          ? `ב-Safari: לחץ <strong>שתף 🔗</strong> ← <strong>הוסף למסך הבית</strong> ← פתח מהמסך הבית`
+          : `לחץ על תפריט הדפדפן ← "התקן אפליקציה" / "Add to Home Screen"`
+        }
+      </div>
+      <button class="install-banner-close" onclick="this.closest('.install-banner').parentElement.innerHTML=''">✕</button>
+    </div>`;
+};
+
+// Show banner only if not already installed
+if (!isPwa()) showInstallBanner();
+
+// ===== DATA EXPORT / IMPORT =====
+const exportData = () => {
+  const data = { tasks, notes, exportedAt: new Date().toISOString(), version: 2 };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `mytasks-backup-${new Date().toISOString().slice(0,10)}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+};
+document.getElementById('export-btn').addEventListener('click', exportData);
 
 // ===== VOICE (main bar) =====
 const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -654,7 +780,7 @@ const addTask = () => {
   const title = taskInput.value.trim();
   if (!title) { taskInput.focus(); return; }
   const now = new Date().toISOString();
-  const task = { id: uid(), title, dueDate: now, notifDate: null, category: null, color: null, link: '', done: false, createdAt: now };
+  const task = { id: uid(), title, dueDate: now, notifDate: null, recurrence: null, category: null, color: null, link: '', done: false, createdAt: now };
   tasks.unshift(task);
   save(); taskInput.value = '';
   renderAll(); showToast('משימה נוספה – לחץ לעריכה ✓');
@@ -663,7 +789,27 @@ const deleteTask = id => { cancelNotif(id); tasks = tasks.filter(t => t.id !== i
 const toggleDone = (id, e) => {
   e.stopPropagation();
   const t = tasks.find(t => t.id === id);
-  if (t) { t.done = !t.done; save(); renderAll(); }
+  if (!t) return;
+  if (!t.done && t.recurrence) {
+    // Mark current as done, spawn next occurrence
+    t.done = true;
+    const next = {
+      id: uid(), title: t.title,
+      dueDate:   nextOccurrence(t.dueDate,   t.recurrence),
+      notifDate: nextOccurrence(t.notifDate, t.recurrence),
+      recurrence: t.recurrence,
+      category: t.category, color: t.color, link: t.link,
+      done: false, createdAt: new Date().toISOString(),
+    };
+    tasks.unshift(next);
+    scheduleNotif(next);
+    showToast('✓ הושלמה · המשימה הבאה נוצרה אוטומטית');
+  } else {
+    t.done = !t.done;
+    if (t.done) cancelNotif(t.id);
+    else scheduleNotif(t);
+  }
+  save(); renderAll();
 };
 
 // Task modal
@@ -710,6 +856,13 @@ const openEditModal = id => {
         </div>
 
         <div class="field">
+          <label>🔁 חזרה</label>
+          <div class="recurrence-bar">
+            ${RECUR.map(r => `<button class="rec-btn ${(task.recurrence||null)===r.id?'active':''}" data-recur="${r.id}" onclick="setRecurrence(this)">${r.label}</button>`).join('')}
+          </div>
+        </div>
+
+        <div class="field">
           <label>קישור</label>
           <input id="m-link" type="url" value="${escHtml(task.link||'')}" placeholder="https://...">
         </div>
@@ -736,6 +889,10 @@ const openEditModal = id => {
   document.getElementById('m-title').focus();
 };
 const closeModal = () => { document.getElementById('modal-bd')?.remove(); editingTaskId = null; };
+const setRecurrence = btn => {
+  document.querySelectorAll('.rec-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+};
 const selectCat = id => {
   document.querySelectorAll('.color-opt').forEach(el => el.classList.toggle('selected', el.dataset.cat === id));
 };
@@ -747,14 +904,18 @@ const saveTask = () => {
   const link      = document.getElementById('m-link').value.trim();
   const catEl     = document.querySelector('.color-opt.selected');
   const catId     = catEl ? catEl.dataset.cat : null;
+  const recurEl  = document.querySelector('.rec-btn.active');
+  const recurVal = recurEl?.dataset.recur;
+  const recur    = (!recurVal || recurVal === 'null') ? null : recurVal;
   let task = tasks.find(t => t.id === editingTaskId);
   if (!task) { task = { id: uid(), createdAt: new Date().toISOString(), done: false }; tasks.unshift(task); }
-  task.title     = title;
-  task.dueDate   = dateVal  ? new Date(dateVal).toISOString()  : null;
-  task.notifDate = notifVal ? new Date(notifVal).toISOString() : null;
-  task.link      = link;
-  task.category  = catId;
-  task.color     = catId ? CAT_MAP[catId].color : null;
+  task.title      = title;
+  task.dueDate    = dateVal  ? new Date(dateVal).toISOString()  : null;
+  task.notifDate  = notifVal ? new Date(notifVal).toISOString() : null;
+  task.recurrence = recur;
+  task.link       = link;
+  task.category   = catId;
+  task.color      = catId ? CAT_MAP[catId].color : null;
   save();
   scheduleNotif(task);
   closeModal(); renderAll(); showToast('נשמר ✓');
@@ -1126,16 +1287,18 @@ const renderTaskCards = list => {
 const renderTask = t => {
   const cat   = t.category ? CAT_MAP[t.category] : null;
   const color = t.color || '#8E8E93';
-  const tag       = cat ? `<span class="task-tag" style="background:${color}">${cat.emoji} ${cat.label}</span>` : '';
-  const schedStr  = t.dueDate    ? `<span class="task-time">📅 ${fmtDateTime(t.dueDate)}</span>`    : '';
-  const notifStr  = t.notifDate  ? `<span class="task-time">🔔 ${fmtDateTime(t.notifDate)}</span>`  : '';
-  const linkEl    = t.link ? `<a class="task-link" href="${escHtml(t.link)}" target="_blank" onclick="event.stopPropagation()">🔗 קישור</a>` : '';
-  const created   = `<span class="task-time">🕐 ${fmtDateTime(t.createdAt)}</span>`;
+  const recurLabel = { daily:'יומי', weekly:'שבועי', monthly:'חודשי', yearly:'שנתי' };
+  const tag        = cat ? `<span class="task-tag" style="background:${color}">${cat.emoji} ${cat.label}</span>` : '';
+  const recurBadge = t.recurrence ? `<span class="rec-badge">🔁 ${recurLabel[t.recurrence]}</span>` : '';
+  const schedStr   = t.dueDate    ? `<span class="task-time">📅 ${fmtDateTime(t.dueDate)}</span>`   : '';
+  const notifStr   = t.notifDate  ? `<span class="task-time">🔔 ${fmtDateTime(t.notifDate)}</span>` : '';
+  const linkEl     = t.link ? `<a class="task-link" href="${escHtml(t.link)}" target="_blank" onclick="event.stopPropagation()">🔗 קישור</a>` : '';
+  const created    = `<span class="task-time">🕐 ${fmtDateTime(t.createdAt)}</span>`;
   return `<div class="task-card ${t.done?'done':''}" style="border-right-color:${color}" onclick="openEditModal('${t.id}')">
     <div class="task-check ${t.done?'checked':''}" onclick="toggleDone('${t.id}',event)">${t.done?'✓':''}</div>
     <div class="task-body">
       <div class="task-title">${escHtml(t.title)}</div>
-      <div class="task-meta">${tag}${linkEl}</div>
+      <div class="task-meta">${tag}${recurBadge}${linkEl}</div>
       ${schedStr  ? `<div class="task-meta">${schedStr}</div>`  : ''}
       ${notifStr  ? `<div class="task-meta">${notifStr}</div>`  : ''}
       <div class="task-meta">${created}</div>
@@ -1175,11 +1338,17 @@ const renderNoteCard = n => {
 
 // ===== INIT =====
 renderAll();
+
+// On first load: fire overdue, then schedule all future
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.ready.then(reg => {
     swReg = reg;
+    checkOverdueNotifs();
     tasks.forEach(t => { if ((t.notifDate || t.dueDate) && !t.done) scheduleNotif(t); });
   });
+} else {
+  checkOverdueNotifs();
+  tasks.forEach(t => { if ((t.notifDate || t.dueDate) && !t.done) scheduleNotif(t); });
 }
 </script>
 </body>
